@@ -1,0 +1,56 @@
+# -*- coding: utf-8 -*-
+import aiomysql
+import logging
+
+logger = logging.getLogger(__name__)
+
+# MySQL 配置
+MYSQL_CONFIG = {
+    "host": "192.168.0.97",
+    "port": 3306,
+    "user": "root",
+    "password": "123.com",
+    "db": "digital_human_cartoon",
+    "charset": "utf8mb4",
+    "autocommit": True,
+    "minsize": 2,
+    "maxsize": 10
+}
+
+
+class Database:
+    _instance = None
+    _pool = None
+
+    @classmethod
+    async def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+            await cls._instance.initialize()
+        return cls._instance
+
+    async def initialize(self):
+        """初始化 MySQL 连接池"""
+        try:
+            self._pool = await aiomysql.create_pool(**MYSQL_CONFIG)
+            logger.info(
+                f"MySQL connected: {MYSQL_CONFIG['host']}:{MYSQL_CONFIG['port']}/{MYSQL_CONFIG['db']}"
+            )
+        except Exception as e:
+            logger.error(f"MySQL connection failed: {e}")
+            raise
+
+    @property
+    def pool(self):
+        return self._pool
+
+    async def close(self):
+        if self._pool:
+            self._pool.close()
+            await self._pool.wait_closed()
+
+
+async def get_db():
+    """获取数据库连接池"""
+    instance = await Database.get_instance()
+    return instance.pool

@@ -1,0 +1,5 @@
+content = open('/opt/python/test_cuda/digital_human_cartoon/configs/config.yaml').read()
+content = content.replace('DEFAULT: "openaiAPI.yaml"', 'DEFAULT: "longcatAgent.yaml"')
+open('/opt/python/test_cuda/digital_human_cartoon/configs/config.yaml', 'w').write(content)
+print('Done - DEFAULT changed to longcatAgent.yaml')
+print(open('/opt/python/test_cuda/digital_human_cartoon/configs/config.yaml').read())

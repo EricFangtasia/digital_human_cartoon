@@ -1,0 +1,53 @@
+# Azure Speech ASR Engine Configuration
+NAME: Azure-Speech
+VERSION: "v0.0.1"
+DESC: "接入 Azure Speech To Text"
+META: {
+  official: "https://learn.microsoft.com/azure/ai-services/speech-service/",
+  configuration: "https://learn.microsoft.com/azure/ai-services/speech-service/get-started-speech-to-text",
+  tips: "适合低延迟云端语音识别，建议配合免按对话模式使用",
+  fee: "free(F0)/paid",
+  infer_type: "normal"
+}
+PARAMETERS: [
+  {
+    name: "speech_key",
+    description: "Azure Speech resource key",
+    type: "string",
+    required: false,
+    choices: [],
+    default: ""
+  },
+  {
+    name: "speech_region",
+    description: "Azure Speech resource region, e.g. eastasia",
+    type: "string",
+    required: false,
+    choices: [],
+    default: ""
+  },
+  {
+    name: "language",
+    description: "Recognition language",
+    type: "string",
+    required: false,
+    choices: ["zh-CN", "en-US", "ja-JP"],
+    default: "zh-CN"
+  },
+  {
+    name: "response_format",
+    description: "Azure response format",
+    type: "string",
+    required: false,
+    choices: ["simple", "detailed"],
+    default: "simple"
+  },
+  {
+    name: "profanity",
+    description: "Profanity handling",
+    type: "string",
+    required: false,
+    choices: ["raw", "masked", "removed"],
+    default: "raw"
+  }
+]

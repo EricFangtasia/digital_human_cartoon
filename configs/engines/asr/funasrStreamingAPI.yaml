@@ -1,0 +1,28 @@
+# Funasr Streaming ASR Engine Configuration
+NAME: funasrStreaming
+VERSION: "v0.0.1"
+DESC: "接入Stream ASR"
+META: {
+  official: "https://github.com/modelscope/FunASR",
+  tips: "支持本地部署的FunAsrStream应用",
+  fee: "free",
+  infer_type: "stream"
+}
+PARAMETERS: [
+  {
+    name: "api_url",
+    description: "Funasr Streaming API URL",
+    type: "string",
+    required: false,
+    choices: [],
+    default: "ws://localhost:10095"
+  },
+  {
+    name: "mode",
+    description: "Funasr Streaming mode",
+    type: "string",
+    required: false,
+    choices: ["2pass"],
+    default: "2pass"
+  }
+]
