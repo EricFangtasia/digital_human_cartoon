@@ -32,7 +32,7 @@ const STREAM_PARTIAL_COMMIT_MAX_MS = 3000;
 const STREAM_PARTIAL_STABLE_COMMIT_MS = 1000;
 const ASSISTANT_ECHO_TTL_MS = 5000;
 const ASSISTANT_ECHO_SIMILARITY_THRESHOLD = 0.84;
-const ASSISTANT_SHORT_ECHO_GRACE_MS = 0;
+const ASSISTANT_SHORT_ECHO_GRACE_MS = 500;
 const ASSISTANT_SHORT_ECHO_MAX_LENGTH = 3;
 
 const normalizeEchoText = (text: string) => {
@@ -834,10 +834,8 @@ export const ChatInput = memo(({
             }
             const playbackActive = ttsBlockedRef.current || chatting;
             if (nextTranscript.length > 0 && playbackActive) {
-                console.info("[Voice] show playback-period transcript draft without submitting", { nextTranscript, hasFinalResult });
-                nativeDisplayTranscriptRef.current = nextTranscript;
-                setMessage(nextTranscript);
-                updateNativeTranscriptDraft(nextTranscript);
+                console.info("[Voice] ignore playback-period transcript to avoid assistant self-capture", { nextTranscript, hasFinalResult });
+                discardNativeTranscriptDraft();
                 return;
             }
             nativeDisplayTranscriptRef.current = nextTranscript;
@@ -1319,9 +1317,10 @@ export const ChatInput = memo(({
             const blocked = !!(event as CustomEvent<{ blocked?: boolean }>).detail?.blocked;
             if (blocked) {
                 assistantShortEchoGraceUntilRef.current = Date.now() + ASSISTANT_SHORT_ECHO_GRACE_MS;
-                if (!nativeRecognitionRef.current && handsFreeRunningRef.current && shouldPreferNativeSpeech()) {
-                    nativeRestartPendingRef.current = true;
-                    scheduleNativeRestart(0);
+                nativeRestartPendingRef.current = true;
+                discardNativeTranscriptDraft();
+                if (nativeRecognitionRef.current) {
+                    stopNativeSpeechRecognition(false);
                 }
                 return;
             }
@@ -1331,7 +1330,7 @@ export const ChatInput = memo(({
             }
             if (handsFreeRunningRef.current && shouldPreferNativeSpeech() && !nativeRecognitionRef.current) {
                 nativeRestartPendingRef.current = true;
-                scheduleNativeRestart(0);
+                scheduleNativeRestart(ASSISTANT_SHORT_ECHO_GRACE_MS);
             }
         };
 
