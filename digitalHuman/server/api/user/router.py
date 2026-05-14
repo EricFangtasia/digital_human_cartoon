@@ -3,6 +3,7 @@
 User management API router - MySQL version
 """
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Union
 
@@ -15,7 +16,7 @@ from digitalHuman.database import get_db
 
 router = APIRouter()
 
-JWT_SECRET = "therapy_digital_human_secret_2026"
+JWT_SECRET = os.getenv("DHC_JWT_SECRET", "change-me-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 24
 

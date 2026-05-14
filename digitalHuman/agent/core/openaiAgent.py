@@ -4,6 +4,8 @@
 @Author  :   一力辉
 '''
 
+import os
+
 from ..builder import AGENTS
 from ..agentBase import BaseAgent
 from digitalHuman.protocol import *
@@ -32,9 +34,9 @@ class OpenaiApiAgent(BaseAgent):
             if not isinstance(input, TextMessage):
                 raise RuntimeError("OpenAI Agent only support TextMessage")
             paramters = self.checkParameter(**kwargs)
-            API_URL = "https://ark.cn-beijing.volces.com/api/v3"
-            API_KEY = "5e406c6c-60b1-4842-be32-9b9964068792"
-            API_MODEL = "doubao-1-5-vision-pro-32k-250115"
+            API_URL = os.getenv("DHC_DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+            API_KEY = os.getenv("DHC_DOUBAO_API_KEY", "")
+            API_MODEL = os.getenv("DHC_DOUBAO_MODEL", "doubao-1-5-vision-pro-32k-250115")
 
             logger.info(f"[OpenaiApiAgent] Using VolcEngine Doubao API: {API_URL}, Model: {API_MODEL}")
 

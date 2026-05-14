@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
 
@@ -9,11 +10,11 @@ class MilvusStore:
     COLLECTION_NAME = "user_memories"
     DIMENSION = 768
 
-    def __init__(self, host="192.168.0.97", port=19530, username="root", password="Milvus"):
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
+    def __init__(self, host=None, port=None, username=None, password=None):
+        self.host = host or os.getenv("DHC_MILVUS_HOST", "127.0.0.1")
+        self.port = int(port or os.getenv("DHC_MILVUS_PORT", "19530"))
+        self.username = username or os.getenv("DHC_MILVUS_USER", "root")
+        self.password = password or os.getenv("DHC_MILVUS_PASSWORD", "")
         self._connected = False
         self.collection = None
 

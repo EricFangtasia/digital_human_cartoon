@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import json
+import os
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -26,14 +27,21 @@ class MemoryManager:
 
     def __init__(
         self,
-        milvus_host="192.168.0.97",
-        milvus_port=19530,
-        milvus_user="root",
-        milvus_password="Milvus",
-        llm_base_url="https://api.longcat.chat/openai/v1",
-        llm_api_key="ak_2YL7MF1bj9v23tu1es33K9ks5Eg87",
-        llm_model="LongCat-Flash-Chat"
+        milvus_host=None,
+        milvus_port=None,
+        milvus_user=None,
+        milvus_password=None,
+        llm_base_url=None,
+        llm_api_key=None,
+        llm_model=None
     ):
+        milvus_host = milvus_host or os.getenv("DHC_MILVUS_HOST", "127.0.0.1")
+        milvus_port = int(milvus_port or os.getenv("DHC_MILVUS_PORT", "19530"))
+        milvus_user = milvus_user or os.getenv("DHC_MILVUS_USER", "root")
+        milvus_password = milvus_password or os.getenv("DHC_MILVUS_PASSWORD", "")
+        llm_base_url = llm_base_url or os.getenv("DHC_LONGCAT_BASE_URL", "https://api.longcat.chat/openai/v1")
+        llm_api_key = llm_api_key or os.getenv("DHC_LONGCAT_API_KEY", "")
+        llm_model = llm_model or os.getenv("DHC_LONGCAT_MODEL", "LongCat-Flash-Chat")
         self.llm_base_url = llm_base_url
         self.llm_api_key = llm_api_key
         self.llm_model = llm_model

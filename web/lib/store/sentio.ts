@@ -167,7 +167,7 @@ interface SentioAgentState {
 const DEFAULT_AGENT_SETTINGS = {
     model: "doubao-1-5-vision-pro-32k-250115",
     base_url: "https://ark.cn-beijing.volces.com/api/v3",
-    api_key: "5e406c6c-60b1-4842-be32-9b9964068792"
+    api_key: ""
 };
 
 export const useSentioAgentStore = create<SentioAgentState>()(

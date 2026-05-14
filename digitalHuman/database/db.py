@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 import aiomysql
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 # MySQL 配置
 MYSQL_CONFIG = {
-    "host": "192.168.0.97",
-    "port": 3306,
-    "user": "root",
-    "password": "123.com",
-    "db": "digital_human_cartoon",
+    "host": os.getenv("DHC_DB_HOST", "127.0.0.1"),
+    "port": int(os.getenv("DHC_DB_PORT", "3306")),
+    "user": os.getenv("DHC_DB_USER", "root"),
+    "password": os.getenv("DHC_DB_PASSWORD", ""),
+    "db": os.getenv("DHC_DB_NAME", "digital_human_cartoon"),
     "charset": "utf8mb4",
     "autocommit": True,
     "minsize": 2,

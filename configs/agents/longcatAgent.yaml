@@ -23,6 +23,6 @@ PARAMETERS: [
     type: "string",
     required: false,
     choices: [],
-    default: "ak_2YL7MF1bj9v23tu1es33K9ks5Eg87"
+    default: ""
   }
 ]

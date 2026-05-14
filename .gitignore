@@ -4,6 +4,9 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
 env/
@@ -27,6 +30,8 @@ logs/
 *.mp3
 *.pcm
 *.tmp
+tmp/
+temp/
 
 # Environment / secrets
 .env

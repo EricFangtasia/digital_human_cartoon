@@ -6,6 +6,7 @@
 '''
 
 import asyncio
+import os
 from ..builder import AGENTS
 from ..agentBase import BaseAgent
 from digitalHuman.protocol import *
@@ -60,9 +61,9 @@ class LongcatAgent(BaseAgent):
             paramters = self.checkParameter(**kwargs)
 
             # LongCat API 配置
-            API_URL = "https://api.longcat.chat/openai/v1"
-            API_KEY = "ak_2YL7MF1bj9v23tu1es33K9ks5Eg87"
-            API_MODEL = "LongCat-Flash-Chat"
+            API_URL = os.getenv("DHC_LONGCAT_BASE_URL", "https://api.longcat.chat/openai/v1")
+            API_KEY = os.getenv("DHC_LONGCAT_API_KEY", "")
+            API_MODEL = os.getenv("DHC_LONGCAT_MODEL", "LongCat-Flash-Chat")
 
             logger.info(f"[LongcatAgent] Using LongCat API: {API_URL}, Model: {API_MODEL}")
 

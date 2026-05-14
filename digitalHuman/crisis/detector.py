@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import json
+import os
 import httpx
 from typing import Optional
 
@@ -59,9 +60,12 @@ class CrisisDetector:
     _instance = None
 
     def __init__(self,
-                 llm_base_url="https://api.longcat.chat/openai/v1",
-                 llm_api_key="ak_2YL7MF1bj9v23tu1es33K9ks5Eg87",
-                 llm_model="LongCat-Flash-Chat"):
+                 llm_base_url=None,
+                 llm_api_key=None,
+                 llm_model=None):
+        llm_base_url = llm_base_url or os.getenv("DHC_LONGCAT_BASE_URL", "https://api.longcat.chat/openai/v1")
+        llm_api_key = llm_api_key or os.getenv("DHC_LONGCAT_API_KEY", "")
+        llm_model = llm_model or os.getenv("DHC_LONGCAT_MODEL", "LongCat-Flash-Chat")
         self.llm_base_url = llm_base_url
         self.llm_api_key = llm_api_key
         self.llm_model = llm_model
