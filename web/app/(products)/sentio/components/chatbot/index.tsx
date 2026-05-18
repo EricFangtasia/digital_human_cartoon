@@ -9,7 +9,7 @@ import { base64ToArrayBuffer } from "@/lib/func";
 import { convertMp3ArrayBufferToWavArrayBuffer } from "@/lib/utils/audio";
 import { Live2dManager } from "@/lib/live2d/live2dManager";
 import { Tooltip } from "@heroui/react";
-import { ChatBubbleLeftRightIcon, ArrowPathIcon, LanguageIcon } from "@heroicons/react/24/solid";
+import { ChatBubbleLeftRightIcon, ArrowPathIcon, StopIcon } from "@heroicons/react/24/solid";
 import {
     useSentioChatModeStore,
     useSentioThemeStore,
@@ -39,7 +39,6 @@ function FreedomChatBot() {
     const { infer_type } = useSentioAsrStore();
     const { clearChatRecord } = useChatRecordStore();
     const [showChatRecord, setShowChatRecord] = useState(true);
-    const [showSubtitles, setShowSubtitles] = useState(true);
     const lastVoiceButtonInteractionAtRef = useRef(0);
     const greetedRef = useRef(false);
     const greetingAudioRef = useRef<ArrayBuffer | null>(null);
@@ -206,6 +205,12 @@ function FreedomChatBot() {
         document.dispatchEvent(new CustomEvent('sentio:replay-opening-greeting'));
     };
 
+    const handleStopAssistantSpeech = () => {
+        touchVoiceControllerRef.current?.abort("stop-assistant-speech");
+        touchVoiceRequestIdRef.current += 1;
+        Live2dManager.getInstance().stopAudio();
+    };
+
     const toolButtonClass = (active: boolean) => clsx(
         "h-12 w-12 rounded-full flex items-center justify-center border",
         "backdrop-blur-md shadow-lg transition-all duration-200 focus:outline-none",
@@ -238,19 +243,18 @@ function FreedomChatBot() {
                         <ArrowPathIcon className="size-5 shrink-0" />
                     </button>
                 </Tooltip>
-                <Tooltip className='opacity-90' placement="right" content={showSubtitles ? "关闭字幕" : "开启字幕"}>
+                <Tooltip className='opacity-90' placement="right" content="打断数字人说话">
                     <button
                         type="button"
-                        className={toolButtonClass(showSubtitles)}
-                        onClick={() => setShowSubtitles((value) => !value)}
-                        aria-pressed={showSubtitles}
-                        aria-label="字幕开关"
+                        className={toolButtonClass(false)}
+                        onClick={handleStopAssistantSpeech}
+                        aria-label="打断数字人说话"
                     >
-                        <LanguageIcon className="size-5 shrink-0" />
+                        <StopIcon className="size-5 shrink-0" />
                     </button>
                 </Tooltip>
             </div>
-            <ChatRecord className={clsx("md:pl-16", (!showChatRecord || !showSubtitles) && "opacity-0 pointer-events-none")} />
+            <ChatRecord className={clsx("md:pl-16", !showChatRecord && "opacity-0 pointer-events-none")} />
             <ChatInput />
         </div>
     )

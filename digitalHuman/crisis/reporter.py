@@ -25,7 +25,11 @@ class CrisisReporter:
             return {"has_crisis": False}
 
         # 异步处理上报（不阻塞对话）
-        asyncio.create_task(detector.handle_crisis(user_id, conversation_id, crisis_info))
+        if user_id and user_id > 0:
+            asyncio.create_task(detector.handle_crisis(user_id, conversation_id, crisis_info))
+        else:
+            logger.warning("Crisis detected without valid user_id; sending anonymous admin alert")
+            asyncio.create_task(detector.handle_anonymous_crisis(crisis_info))
 
         return {
             "has_crisis": True,

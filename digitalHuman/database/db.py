@@ -13,6 +13,7 @@ MYSQL_CONFIG = {
     "password": os.getenv("DHC_DB_PASSWORD", ""),
     "db": os.getenv("DHC_DB_NAME", "digital_human_cartoon"),
     "charset": "utf8mb4",
+    "init_command": f"SET time_zone = '{os.getenv('DHC_DB_TIME_ZONE', '+08:00')}'",
     "autocommit": True,
     "minsize": 2,
     "maxsize": 10

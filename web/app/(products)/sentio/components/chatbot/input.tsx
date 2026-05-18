@@ -17,8 +17,8 @@ import clsx from 'clsx';
 import { Live2dManager } from '@/lib/live2d/live2dManager';
 
 let micRecoder: Recorder | null = null;
-const NATIVE_SPEECH_SILENCE_MS = 1000;
-const NATIVE_SPEECH_START_TIMEOUT_MS = 1500;
+const NATIVE_SPEECH_SILENCE_MS = 900;
+const NATIVE_SPEECH_START_TIMEOUT_MS = 450;
 const NATIVE_SPEECH_STALE_RESTART_MS = 12000;
 const NATIVE_SPEECH_STALE_RESTART_COOLDOWN_MS = 5000;
 const STREAM_FINAL_STALE_MS = 5000;
@@ -26,13 +26,13 @@ const STREAM_BARGE_IN_RMS_THRESHOLD = 0.05;
 const STREAM_BARGE_IN_MIN_FRAMES = 3;
 const STREAM_STALE_RESULT_IGNORE_MS = 400;
 const STREAM_ACTIVITY_RMS_THRESHOLD = 0.02;
-const STREAM_FINAL_SILENCE_MS = 1000;
+const STREAM_FINAL_SILENCE_MS = 900;
 const STREAM_FINALIZING_TIMEOUT_MS = 1800;
 const STREAM_PARTIAL_COMMIT_MAX_MS = 3000;
-const STREAM_PARTIAL_STABLE_COMMIT_MS = 1000;
+const STREAM_PARTIAL_STABLE_COMMIT_MS = 900;
 const ASSISTANT_ECHO_TTL_MS = 5000;
 const ASSISTANT_ECHO_SIMILARITY_THRESHOLD = 0.84;
-const ASSISTANT_SHORT_ECHO_GRACE_MS = 500;
+const ASSISTANT_SHORT_ECHO_GRACE_MS = 80;
 const ASSISTANT_SHORT_ECHO_MAX_LENGTH = 3;
 
 const normalizeEchoText = (text: string) => {
@@ -352,7 +352,7 @@ export const ChatInput = memo(({
         }
     }
 
-    const scheduleNativeRestart = (delayMs: number = 250) => {
+    const scheduleNativeRestart = (delayMs: number = 0) => {
         if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech()) {
             return;
         }
@@ -367,6 +367,11 @@ export const ChatInput = memo(({
         }
 
         clearHandsFreeRestartTimer();
+        if (delayMs <= 0) {
+            nativeRestartPendingRef.current = false;
+            handleStartNativeRecord();
+            return;
+        }
         handsFreeRestartTimerRef.current = setTimeout(() => {
             handsFreeRestartTimerRef.current = null;
             if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech()) {
@@ -384,7 +389,7 @@ export const ChatInput = memo(({
         }, delayMs);
     }
 
-    const recoverNativeSpeech = (delayMs: number = 600) => {
+    const recoverNativeSpeech = (delayMs: number = 150) => {
         setMicRecordState(false);
         setAsrConvertState(false);
         resetNativeSpeechState();
@@ -790,7 +795,7 @@ export const ChatInput = memo(({
                 if (!handsFreeRunningRef.current || nativeDisplayTranscriptRef.current.trim().length > 0 || nativeSubmittedRef.current) {
                     return;
                 }
-                recoverNativeSpeech(300);
+                recoverNativeSpeech(0);
             }, 10000);
         };
 
@@ -832,12 +837,6 @@ export const ChatInput = memo(({
                 discardNativeTranscriptDraft();
                 return;
             }
-            const playbackActive = ttsBlockedRef.current || chatting;
-            if (nextTranscript.length > 0 && playbackActive) {
-                console.info("[Voice] ignore playback-period transcript to avoid assistant self-capture", { nextTranscript, hasFinalResult });
-                discardNativeTranscriptDraft();
-                return;
-            }
             nativeDisplayTranscriptRef.current = nextTranscript;
             setMessage(nextTranscript);
             updateNativeTranscriptDraft(nextTranscript);
@@ -853,18 +852,18 @@ export const ChatInput = memo(({
             const error = String(event?.error || "");
             if (error === "aborted") {
                 if (handsFreeRunningRef.current) {
-                    recoverNativeSpeech(500);
+                    recoverNativeSpeech(0);
                 }
                 return;
             }
             if (error === "no-speech") {
                 setVoiceHint("Listening");
-                recoverNativeSpeech(300);
+                recoverNativeSpeech(0);
                 return;
             }
             if (error === "network") {
                 setVoiceHint("Browser ASR network issue");
-                recoverNativeSpeech(900);
+                recoverNativeSpeech(250);
                 return;
             }
             setMicRecordState(false);
@@ -907,7 +906,7 @@ export const ChatInput = memo(({
                 discardNativeTranscriptDraft();
                 if (handsFreeRunningRef.current) {
                     nativeRestartPendingRef.current = true;
-                    scheduleNativeRestart(ASSISTANT_SHORT_ECHO_GRACE_MS);
+                    scheduleNativeRestart(0);
                 }
                 return;
             }
@@ -943,7 +942,7 @@ export const ChatInput = memo(({
         clearNativeStartTimeout();
         nativeStartTimeoutRef.current = setTimeout(() => {
             if (nativeRecognitionRef.current === recognition && !nativeRecognitionStartedRef.current) {
-                recoverNativeSpeech(500);
+                recoverNativeSpeech(0);
             }
         }, NATIVE_SPEECH_START_TIMEOUT_MS);
         const startRecognition = () => {
@@ -956,7 +955,7 @@ export const ChatInput = memo(({
                 setAsrConvertState(false);
                 setVoiceModeActive(true);
                 setVoiceHint("Browser ASR start failed");
-                recoverNativeSpeech(700);
+                recoverNativeSpeech(150);
             }
         };
 
@@ -1309,7 +1308,7 @@ export const ChatInput = memo(({
             if (state === "done") {
                 openingGreetingActiveRef.current = false;
                 nativeRestartPendingRef.current = true;
-                scheduleNativeRestart(250);
+                scheduleNativeRestart(0);
             }
         };
 
@@ -1330,7 +1329,7 @@ export const ChatInput = memo(({
             }
             if (handsFreeRunningRef.current && shouldPreferNativeSpeech() && !nativeRecognitionRef.current) {
                 nativeRestartPendingRef.current = true;
-                scheduleNativeRestart(ASSISTANT_SHORT_ECHO_GRACE_MS);
+                scheduleNativeRestart(0);
             }
         };
 
@@ -1341,9 +1340,9 @@ export const ChatInput = memo(({
             openingGreetingActiveRef.current = false;
             nativeRestartPendingRef.current = true;
             if (shouldPreferNativeSpeech()) {
-                scheduleNativeRestart(250);
+                scheduleNativeRestart(0);
             }
-        }, 2500);
+        }, 750);
 
         return () => {
             handsFreeRunningRef.current = false;
@@ -1381,24 +1380,21 @@ export const ChatInput = memo(({
                 return;
             }
             handleStartRecord();
-        }, 300);
+        }, 0);
     }, [startMicRecord, startAsrConvert])
 
     useEffect(() => {
-        if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech() || !nativeRestartPendingRef.current) {
+        if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech()) {
             return;
         }
-        if (isNativeVoiceBusy() || openingGreetingActiveRef.current) {
+        if (isNativeVoiceBusy() || openingGreetingActiveRef.current || ttsBlockedRef.current) {
             return;
         }
-        clearHandsFreeRestartTimer();
-        handsFreeRestartTimerRef.current = setTimeout(() => {
-            if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech() || isNativeVoiceBusy() || openingGreetingActiveRef.current) {
-                return;
-            }
-            nativeRestartPendingRef.current = false;
-            handleStartNativeRecord();
-        }, 500);
+        if (nativeRecognitionRef.current) {
+            return;
+        }
+        nativeRestartPendingRef.current = false;
+        handleStartNativeRecord();
         return () => {
             clearHandsFreeRestartTimer();
         }
@@ -1432,7 +1428,7 @@ export const ChatInput = memo(({
             }
             nativeRestartPendingRef.current = false;
             handleStartNativeRecord();
-        }, 800);
+        }, 200);
         return () => {
             window.clearInterval(timer);
         }
