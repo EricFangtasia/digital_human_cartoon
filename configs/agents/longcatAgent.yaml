@@ -1,21 +1,28 @@
 NAME: "LongCat"
-VERSION: "v0.0.1"
+VERSION: "v0.0.2"
 DESC: "LongCat 心理疗愈 Agent，专为情感陪伴与心理支持设计"
 META: {
   official: "https://api.longcat.chat",
   configuration: "",
   tips: "基于 LongCat-Flash-Chat 模型，兼容 OpenAI 协议",
-  fee: ""
+  fee: "LongCat-Flash-Chat 额度以平台当前政策为准"
 }
-# 暴露给前端的参数选项以及默认值
 PARAMETERS: [
   {
     name: "model",
     description: "ID of the model to use.",
     type: "string",
     required: false,
-    choices: ["LongCat-Flash-Chat", "LongCat-Pro-Chat"],
+    choices: ["LongCat-Flash-Chat"],
     default: "LongCat-Flash-Chat"
+  },
+  {
+    name: "base_url",
+    description: "The base url for LongCat OpenAI-compatible request.",
+    type: "string",
+    required: false,
+    choices: [],
+    default: "https://api.longcat.chat/openai/v1"
   },
   {
     name: "api_key",

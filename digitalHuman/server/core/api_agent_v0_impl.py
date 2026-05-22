@@ -36,12 +36,16 @@ async def create_agent_conversation(name: str, param: Dict) -> str:
 def agent_infer_stream(user: UserDesc, items: AgentEngineInput):
     input = TextMessage(data=items.data)
     engine = items.engine
-    agent_config = items.config
+    agent_config = dict(items.config or {})
 
-    if engine == "LongCat":
-        logger.warning("[AgentAPI] LongCat is slow/unreliable for realtime voice, routing request to OpenAI/Doubao")
-        engine = "OpenAI"
-        agent_config = {}
+    if engine == "OpenAI":
+        logger.warning("[AgentAPI] Legacy OpenAI request detected, routing request to LongCat-Flash-Chat")
+        engine = "LongCat"
+        agent_config = {
+            "model": "LongCat-Flash-Chat",
+            "base_url": "https://api.longcat.chat/openai/v1",
+            "api_key": agent_config.get("api_key") or "",
+        }
 
     streamContent = agentPool.get(engine).run(
         input=input,

@@ -1,6 +1,6 @@
 import { LogoBar } from "@/components/header/logo";
 import { Items } from "../items";
-import { Switch, addToast } from "@heroui/react";
+import { Switch, addToast, Tooltip } from "@heroui/react";
 import { UserMinusIcon, UserPlusIcon } from "@heroicons/react/24/solid";
 import { useSentioChatModeStore, useChatRecordStore, useSentioAsrStore } from "@/lib/store/sentio";
 import { CHAT_MODE } from "@/lib/protocol";
@@ -23,13 +23,16 @@ function ChatModeSwitch() {
         }
     }
     return (
-        <Switch
-            color="secondary"
-            startContent={<UserPlusIcon/>}
-            endContent={<UserMinusIcon/>}
-            isSelected={chatMode == CHAT_MODE.IMMSERSIVE}
-            onValueChange={onSelect}
-        />
+        <Tooltip className="opacity-90" placement="bottom" content={chatMode == CHAT_MODE.IMMSERSIVE ? "切换到普通对话" : "切换到沉浸语音"}>
+            <Switch
+                color="secondary"
+                startContent={<UserPlusIcon/>}
+                endContent={<UserMinusIcon/>}
+                isSelected={chatMode == CHAT_MODE.IMMSERSIVE}
+                onValueChange={onSelect}
+                aria-label="聊天模式"
+            />
+        </Tooltip>
     )
 }
 

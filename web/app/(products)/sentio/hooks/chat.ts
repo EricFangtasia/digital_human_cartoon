@@ -49,6 +49,26 @@ const dispatchAssistantSpeechText = (text: string) => {
     }));
 };
 
+const normalizeAgentRequest = (engine: string, settings: { [key: string]: any }) => {
+    if (!engine || engine === "OpenAI" || engine === "LongCat") {
+        return {
+            engine: "LongCat",
+            settings: {
+                base_url: "https://api.longcat.chat/openai/v1",
+                ...(settings || {}),
+                model: (settings?.model === "LongCat-2.0-Preview" || !settings?.model)
+                    ? "LongCat-Flash-Chat"
+                    : settings.model,
+            }
+        };
+    }
+
+    return {
+        engine,
+        settings: settings || {},
+    };
+};
+
 export function useAudioTimer() {
     const t = useTranslations("Products.sentio");
     const startTime = useRef(new Date());
@@ -311,9 +331,10 @@ export function useChatWithAgent() {
         };
 
         resetAgentIdleTimer();
+        const agentRequest = normalizeAgentRequest(agentEngine, agentSettings);
         api_agent_stream(
-            agentEngine,
-            agentSettings,
+            agentRequest.engine,
+            agentRequest.settings,
             message,
             conversationId.current,
             agentController.signal,

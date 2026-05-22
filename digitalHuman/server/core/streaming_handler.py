@@ -251,8 +251,11 @@ class RealtimeVoiceDialogueSession:
             asr_config={},
             tts_engine="EdgeTTS",
             tts_config={},
-            agent_engine="OpenAI",
-            agent_config={},
+            agent_engine="LongCat",
+            agent_config={
+                "model": "LongCat-Flash-Chat",
+                "base_url": "https://api.longcat.chat/openai/v1",
+            },
         )
 
     async def send_json(self, payload: dict[str, Any]):
@@ -269,10 +272,14 @@ class RealtimeVoiceDialogueSession:
         agent_engine = str(agent.get("engine") or self.runtime.agent_engine)
         agent_config = dict(agent.get("config") or {})
 
-        if agent_engine == "LongCat":
-            logger.warning("[RealtimeVoice] LongCat is slow/unreliable for realtime voice, routing request to OpenAI/Doubao")
-            agent_engine = "OpenAI"
-            agent_config = {}
+        if agent_engine == "OpenAI":
+            logger.warning("[RealtimeVoice] Legacy OpenAI request detected, routing request to LongCat-Flash-Chat")
+            agent_engine = "LongCat"
+            agent_config = {
+                "model": "LongCat-Flash-Chat",
+                "base_url": "https://api.longcat.chat/openai/v1",
+                "api_key": agent_config.get("api_key") or "",
+            }
 
         self.runtime = VoiceRuntimeConfig(
             asr_engine=str(asr.get("engine") or self.runtime.asr_engine),

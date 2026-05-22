@@ -152,7 +152,7 @@ export const useSentioTtsStore = create<SentioTtsState>()(
     )
 )
 
-// ==================== Agent 相关设置 ==================
+// ==================== Agent settings ==================
 interface SentioAgentState {
     enable: boolean,
     engine: string,
@@ -165,37 +165,43 @@ interface SentioAgentState {
 }
 
 const DEFAULT_AGENT_SETTINGS = {
-    model: "doubao-1-5-vision-pro-32k-250115",
-    base_url: "https://ark.cn-beijing.volces.com/api/v3",
+    model: "LongCat-Flash-Chat",
+    base_url: "https://api.longcat.chat/openai/v1",
     api_key: ""
 };
+
+const normalizeLongCatAgentSettings = (settings?: { [key: string]: any }) => ({
+    ...DEFAULT_AGENT_SETTINGS,
+    ...(settings ?? {}),
+    model: (settings?.model === "LongCat-2.0-Preview" || !settings?.model)
+        ? DEFAULT_AGENT_SETTINGS.model
+        : settings.model,
+});
 
 export const useSentioAgentStore = create<SentioAgentState>()(
     persist(
         (set) => ({
             enable: true,
-            engine: "OpenAI",  // 默认选中OpenAI（实际使用火山云）
+            engine: "LongCat",
             infer_type: IFER_TYPE.NORMAL,
             settings: DEFAULT_AGENT_SETTINGS,
-            // setEnable: (enable: boolean) => set((state) => ({ enable: enable })),
             setEnable: (enable: boolean) => set((state) => ({})),
             setInferType: (infer_type: IFER_TYPE) => set((state) => ({ infer_type: infer_type })),
-            setEngine: (by: string) => set((state) => ({ engine: by })),
-            setSettings: (by: { [key: string]: any }) => set((state) => ({ settings: by }))
+            setEngine: (by: string) => set((state) => ({ engine: by === "OpenAI" ? "LongCat" : by })),
+            setSettings: (by: { [key: string]: any }) => set((state) => ({
+                settings: state.engine === "LongCat" ? normalizeLongCatAgentSettings(by) : by
+            }))
         }),
         {
             name: 'sentio-agent-storage',
-            version: 2,
+            version: 5,
             migrate: (persistedState: any) => {
                 const state = (persistedState || {}) as Partial<SentioAgentState>;
                 return {
                     enable: true,
-                    engine: "OpenAI",
+                    engine: "LongCat",
                     infer_type: state.infer_type ?? IFER_TYPE.NORMAL,
-                    settings: {
-                        ...DEFAULT_AGENT_SETTINGS,
-                        ...(state.engine === "OpenAI" ? (state.settings ?? {}) : {}),
-                    },
+                    settings: normalizeLongCatAgentSettings(state.settings),
                 };
             },
         }

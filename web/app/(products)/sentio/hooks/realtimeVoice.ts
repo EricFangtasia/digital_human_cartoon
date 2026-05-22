@@ -335,8 +335,14 @@ export const useRealtimeVoice = () => {
                     config: ttsSettings,
                 },
                 agent: {
-                    engine: agentEngine || 'OpenAI',
-                    config: agentSettings,
+                    engine: agentEngine === 'OpenAI' ? 'LongCat' : (agentEngine || 'LongCat'),
+                    config: {
+                        base_url: "https://api.longcat.chat/openai/v1",
+                        ...(agentSettings || {}),
+                        model: (agentSettings?.model === "LongCat-2.0-Preview" || !agentSettings?.model)
+                            ? "LongCat-Flash-Chat"
+                            : agentSettings.model,
+                    },
                 }
             }));
 

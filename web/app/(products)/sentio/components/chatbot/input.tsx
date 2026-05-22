@@ -744,7 +744,7 @@ export const ChatInput = memo(({
     }
 
     const getNativeSpeechRecognitionCtor = () => {
-        if (typeof window === "undefined" || !window.isSecureContext) {
+        if (typeof window === "undefined") {
             return null;
         }
         return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
@@ -960,7 +960,8 @@ export const ChatInput = memo(({
         };
 
         const requestMic = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
-        if (requestMic && !micPermissionReadyRef.current) {
+        const shouldPreflightMic = false;
+        if (shouldPreflightMic && requestMic && !micPermissionReadyRef.current) {
             setVoiceHint("Requesting microphone");
             requestMic({ audio: true })
                 .then((stream) => {
@@ -1302,7 +1303,6 @@ export const ChatInput = memo(({
             if (state === "starting" || state === "playing") {
                 openingGreetingActiveRef.current = true;
                 nativeRestartPendingRef.current = true;
-                setVoiceModeActive(true);
                 return;
             }
             if (state === "done") {
@@ -1317,10 +1317,6 @@ export const ChatInput = memo(({
             if (blocked) {
                 assistantShortEchoGraceUntilRef.current = Date.now() + ASSISTANT_SHORT_ECHO_GRACE_MS;
                 nativeRestartPendingRef.current = true;
-                discardNativeTranscriptDraft();
-                if (nativeRecognitionRef.current) {
-                    stopNativeSpeechRecognition(false);
-                }
                 return;
             }
             assistantShortEchoGraceUntilRef.current = Date.now() + ASSISTANT_SHORT_ECHO_GRACE_MS;
@@ -1435,7 +1431,8 @@ export const ChatInput = memo(({
     }, [enableASR, chatting, startMicRecord, startAsrConvert, asrInferType, asrEngine])
 
     const isRealtimeStreamMode = shouldUseRealtimeVoice();
-    const micRecording = voiceModeActive || startMicRecord || startAsrConvert;
+    const voiceInputRunning = startMicRecord || startAsrConvert || !!nativeRecognitionRef.current || !!streamAudioRecoderRef.current || !!streamAsrWsClientRef.current;
+    const micRecording = voiceModeActive || voiceInputRunning;
     const asrBusy = startAsrConvert;
     const voiceStatus = chatting || ttsBlocked
         ? "Replying"
@@ -1468,19 +1465,18 @@ export const ChatInput = memo(({
                             event.stopPropagation();
                             markVoiceButtonInteraction();
                         }}
-                        onClick={voiceModeActive ? handleStopRecord : handleStartRecord}
-                        disabled={asrBusy}
+                        onClick={(voiceInputRunning || asrBusy) ? handleStopRecord : handleStartRecord}
                         aria-label="Voice chat"
                         className={clsx(
                             "flex items-center justify-center rounded-full transition-all duration-200",
-                            voiceModeActive
+                            (voiceInputRunning || asrBusy)
                                 ? "w-12 h-12 bg-red-500 text-white shadow-lg shadow-red-500/40 animate-pulse"
                                 : true
                                     ? "w-12 h-12 bg-green-500 text-white shadow-lg shadow-green-500/40 hover:bg-green-600 hover:scale-105"
                                     : "w-12 h-12 bg-gray-400 text-gray-200 cursor-not-allowed"
                         )}
                     >
-                        {voiceModeActive ? (
+                        {(voiceInputRunning || asrBusy) ? (
                             <StopCircleIcon className='size-6' />
                         ) : (
                             asrBusy ? (

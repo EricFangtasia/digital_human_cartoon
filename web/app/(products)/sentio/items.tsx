@@ -6,7 +6,8 @@ import {
     DropdownMenu,
     DropdownItem, 
     DropdownTrigger, 
-    Button
+    Button,
+    Tooltip
 } from "@heroui/react";
 import { GithubIcon } from '@/components/icons/github';
 import { 
@@ -35,12 +36,17 @@ export function Items() {
                 onOpenChange={(isOpen) => setIsOpen(isOpen)}
             >
                 <DropdownTrigger>
-                    <Button
-                        isIconOnly
-                        variant="light"
-                    > 
-                        {isOpen? <ChevronDownIcon className="size-6"/> : <Bars3Icon className="size-6"/>}
-                    </Button>
+                    <div>
+                        <Tooltip className="opacity-90" placement="bottom" content={isOpen ? "收起菜单" : "打开菜单"}>
+                            <Button
+                                isIconOnly
+                                variant="light"
+                                aria-label="功能菜单"
+                            > 
+                                {isOpen? <ChevronDownIcon className="size-6"/> : <Bars3Icon className="size-6"/>}
+                            </Button>
+                        </Tooltip>
+                    </div>
 
                 </DropdownTrigger>
                 <DropdownMenu

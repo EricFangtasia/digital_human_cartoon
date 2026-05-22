@@ -18,4 +18,4 @@ SERVER:
       DEFAULT: ""
   AGENTS:
     SUPPORT_LIST: [ "repeaterAgent.yaml", "openaiAPI.yaml", "difyAgent.yaml", "fastgptAgent.yaml", "cozeAgent.yaml", "longcatAgent.yaml" ]
-    DEFAULT: "openaiAPI.yaml"
+    DEFAULT: "longcatAgent.yaml"

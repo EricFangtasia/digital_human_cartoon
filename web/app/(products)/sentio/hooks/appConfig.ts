@@ -15,6 +15,42 @@ import { getSrcPath } from "@/lib/path";
 import { useLive2D } from "./live2d";
 import * as CONSTANTS from '@/lib/constants';
 
+const DEFAULT_AGENT_CONFIG = {
+    model: "LongCat-Flash-Chat",
+    base_url: "https://api.longcat.chat/openai/v1",
+    api_key: ""
+};
+
+const normalizeAgentConfig = (name?: string, config?: Record<string, any>) => {
+    if (!name || name === "OpenAI") {
+        return {
+            name: "LongCat",
+            config: {
+                ...DEFAULT_AGENT_CONFIG,
+                api_key: config?.api_key || ""
+            }
+        };
+    }
+
+    if (name === "LongCat") {
+        return {
+            name,
+            config: {
+                ...DEFAULT_AGENT_CONFIG,
+                ...(config || {}),
+                model: (config?.model === "LongCat-2.0-Preview" || !config?.model)
+                    ? DEFAULT_AGENT_CONFIG.model
+                    : config.model,
+            }
+        };
+    }
+
+    return {
+        name,
+        config: config || {}
+    };
+};
+
 export function useAppConfig() {
     const { enable: asrEnable, setEnable: setAsrEnable, engine: asrEngine, setEngine: setAsrEngine, settings: asrSettings, setSettings: setAsrSettings } = useSentioAsrStore();
     const { enable: ttsEnable, setEnable: setTtsEnable, engine: ttsEngine, setEngine: setTtsEngine, setSettings: setTtsSettings, settings: ttsSettings } = useSentioTtsStore();
@@ -93,10 +129,10 @@ export function useAppConfig() {
     const resetAppEngine = (engine?: string) => {
         setAsrEngine(engine || "Dify");
         setTtsEngine(engine || "EdgeTTS");
-        setAgentEngine(engine || "OpenAI");
+        setAgentEngine(engine || "LongCat");
         setAsrSettings({});
         setTtsSettings({});
-        setAgentSettings({});
+        setAgentSettings(engine ? {} : DEFAULT_AGENT_CONFIG);
     }
 
     const resetAppConfig = () => {
@@ -121,8 +157,11 @@ export function useAppConfig() {
             setTtsEnable(config.tts_enable);
             config.tts && setTtsEngine(config.tts.name);
             config.tts && setTtsSettings(config.tts.config);
-            config.agent && setAgentEngine(config.agent.name);
-            config.agent && setAgentSettings(config.agent.config);
+            if (config.agent) {
+                const agent = normalizeAgentConfig(config.agent.name, config.agent.config);
+                setAgentEngine(agent.name);
+                setAgentSettings(agent.config);
+            }
             setBackground(config.background);
             setCurrentCharacter(config.character);
             setTheme(config.type);
