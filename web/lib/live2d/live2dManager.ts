@@ -1,6 +1,24 @@
 import { LAppDelegate } from '@/lib/live2d/src/lappdelegate';
+import * as LAppDefine from '@/lib/live2d/src/lappdefine';
 import { ResourceModel } from '@/lib/protocol';
 import { SENTIO_ASR_PLAYBACK_COOLDOWN_MS } from '@/lib/constants';
+
+const IDLE_MOTION_MIN_DELAY_MS = 5000;
+const IDLE_MOTION_DELAY_RANGE_MS = 10000;
+const IDLE_MOTION_FALLBACK_GROUPS = [
+  LAppDefine.MotionGroupIdle,
+  'Idle',
+  'idle',
+  'TapBody',
+  'tap_body',
+  'Pinch',
+  'pinch',
+  'Shake',
+  'shake',
+  'FlickHead',
+  'flick_head',
+];
+const IDLE_MOTION_EXCLUDED_GROUPS = new Set(['talk', 'speak', 'speaking']);
 
 export class Live2dManager {
   public static getInstance(): Live2dManager {
@@ -13,6 +31,11 @@ export class Live2dManager {
 
   public setReady(ready: boolean) {
     this._ready = ready;
+    if (ready) {
+      this.startIdleLiveliness();
+    } else {
+      this.stopIdleLiveliness();
+    }
   }
 
   public isReady(): boolean {
@@ -20,6 +43,7 @@ export class Live2dManager {
   }
 
   public changeCharacter(character: ResourceModel | null) {
+    this.stopIdleLiveliness();
     this._ready = false;
     LAppDelegate.getInstance().changeCharacter(character);
   }
@@ -204,23 +228,11 @@ export class Live2dManager {
   }
 
   public triggerEmotionMotion(emotion: string): void {
-    const delegate = LAppDelegate.getInstance();
-    const subdelegates = delegate.getSubdelegate();
-
-    if (!subdelegates || subdelegates.getSize() === 0) {
+    const current = this.getCurrentLive2dModel();
+    if (!current) {
       return;
     }
-
-    const live2dManager = subdelegates.at(0).getLive2DManager();
-    const model = live2dManager.getCurrentModel();
-    if (!model) {
-      return;
-    }
-
-    const modelSetting = (model as any)._modelSetting;
-    if (!modelSetting) {
-      return;
-    }
+    const { model, modelSetting } = current;
 
     console.log(`[Live2D] Triggering emotion motion: ${emotion}`);
 
@@ -311,23 +323,11 @@ export class Live2dManager {
   }
 
   private startTalkingMotion(): void {
-    const delegate = LAppDelegate.getInstance();
-    const subdelegates = delegate.getSubdelegate();
-
-    if (!subdelegates || subdelegates.getSize() === 0) {
+    const current = this.getCurrentLive2dModel();
+    if (!current) {
       return;
     }
-
-    const live2dManager = subdelegates.at(0).getLive2DManager();
-    const model = live2dManager.getCurrentModel();
-    if (!model) {
-      return;
-    }
-
-    const modelSetting = (model as any)._modelSetting;
-    if (!modelSetting) {
-      return;
-    }
+    const { model, modelSetting } = current;
 
     const talkGroups = ['talk', 'speak', 'speaking', 'Talk', 'Speak'];
 
@@ -383,6 +383,10 @@ export class Live2dManager {
 
   private stopTalkingMotion(): void {
     console.log('[Live2D] Talking motion finished, returning to idle');
+    this.setCurrentLipSyncValue(0);
+    window.setTimeout(() => {
+      this.playIdleMotion();
+    }, 120);
   }
 
   private startLipSyncAnalysis(analyser: AnalyserNode, dataArray: Uint8Array<ArrayBuffer>): void {
@@ -445,6 +449,147 @@ export class Live2dManager {
     }
   }
 
+  private getCurrentLive2dModel(): {
+    live2dManager: any;
+    model: any;
+    modelSetting: any;
+  } | null {
+    const delegate = LAppDelegate.getInstance();
+    const subdelegates = delegate.getSubdelegate();
+
+    if (!subdelegates || subdelegates.getSize() === 0) {
+      return null;
+    }
+
+    const live2dManager = subdelegates.at(0).getLive2DManager();
+    const model = live2dManager.getCurrentModel();
+    if (!model) {
+      return null;
+    }
+
+    const modelSetting = (model as any)._modelSetting;
+    if (!modelSetting) {
+      return null;
+    }
+
+    return { live2dManager, model, modelSetting };
+  }
+
+  private getNextIdleMotionDelayMs(): number {
+    return IDLE_MOTION_MIN_DELAY_MS + Math.floor(Math.random() * IDLE_MOTION_DELAY_RANGE_MS);
+  }
+
+  private playIdleMotion(): boolean {
+    if (!this._ready || this._audioIsPlaying) {
+      return false;
+    }
+
+    const current = this.getCurrentLive2dModel();
+    if (!current) {
+      return false;
+    }
+
+    const playedGroups = new Set<string>();
+    for (const group of IDLE_MOTION_FALLBACK_GROUPS) {
+      if (playedGroups.has(group)) {
+        continue;
+      }
+      playedGroups.add(group);
+
+      const motionCount = current.modelSetting.getMotionCount(group);
+      if (motionCount && motionCount > 0) {
+        const motionNo = Math.floor(Math.random() * motionCount);
+        const priority = group === LAppDefine.MotionGroupIdle
+          ? LAppDefine.PriorityIdle
+          : LAppDefine.PriorityNormal;
+        current.model.startMotion(group, motionNo, priority);
+        console.log(`[Live2D] Started idle/action motion: ${group}_${motionNo}`);
+        return true;
+      }
+    }
+
+    try {
+      const motionGroupCount = current.modelSetting.getMotionGroupCount();
+      const availableGroups: string[] = [];
+      for (let i = 0; i < motionGroupCount; i++) {
+        const groupName = current.modelSetting.getMotionGroupName(i);
+        if (
+          groupName &&
+          !IDLE_MOTION_EXCLUDED_GROUPS.has(String(groupName).toLowerCase()) &&
+          !playedGroups.has(groupName) &&
+          current.modelSetting.getMotionCount(groupName) > 0
+        ) {
+          availableGroups.push(groupName);
+        }
+      }
+
+      if (availableGroups.length > 0) {
+        const group = availableGroups[Math.floor(Math.random() * availableGroups.length)];
+        const motionCount = current.modelSetting.getMotionCount(group);
+        const motionNo = Math.floor(Math.random() * motionCount);
+        current.model.startMotion(group, motionNo, LAppDefine.PriorityNormal);
+        console.log(`[Live2D] Started fallback random motion: ${group}_${motionNo}`);
+        return true;
+      }
+    } catch (e) {
+      console.warn('[Live2D] Failed to enumerate idle motion groups:', e);
+    }
+
+    console.warn('[Live2D] No idle/action motion found for current model');
+    return false;
+  }
+
+  private startIdleLiveliness(): void {
+    if (this._idleAnimationId !== null) {
+      return;
+    }
+
+    this._idleStartedAt = Date.now();
+    this._lastIdleMotionAt = this._idleStartedAt;
+    this._nextIdleMotionDelayMs = this.getNextIdleMotionDelayMs();
+
+    const tick = () => {
+      if (!this._ready) {
+        this._idleAnimationId = null;
+        return;
+      }
+
+      const current = this.getCurrentLive2dModel();
+      if (current) {
+        const elapsedSeconds = (Date.now() - this._idleStartedAt) / 1000;
+        const speakingBoost = this._audioIsPlaying ? 1.35 : 1;
+        const x =
+          (Math.sin(elapsedSeconds * 0.72) * 0.075 +
+            Math.sin(elapsedSeconds * 0.29 + 1.8) * 0.045) *
+          speakingBoost;
+        const y =
+          (Math.sin(elapsedSeconds * 0.58 + 0.9) * 0.045 +
+            Math.sin(elapsedSeconds * 0.21) * 0.025) *
+          speakingBoost;
+
+        current.live2dManager.onDrag(x, y);
+
+        const now = Date.now();
+        if (!this._audioIsPlaying && now - this._lastIdleMotionAt > this._nextIdleMotionDelayMs) {
+          this._lastIdleMotionAt = now;
+          this._nextIdleMotionDelayMs = this.getNextIdleMotionDelayMs();
+          this.playIdleMotion();
+        }
+      }
+
+      this._idleAnimationId = requestAnimationFrame(tick);
+    };
+
+    this._idleAnimationId = requestAnimationFrame(tick);
+  }
+
+  private stopIdleLiveliness(): void {
+    if (this._idleAnimationId !== null) {
+      cancelAnimationFrame(this._idleAnimationId);
+      this._idleAnimationId = null;
+    }
+  }
+
   private emitTtsState(): void {
     if (typeof document === 'undefined') {
       return;
@@ -500,6 +645,10 @@ export class Live2dManager {
     this._lipSyncAnimationId = null;
     this._playbackBlockUntil = 0;
     this._playbackCooldownTimer = null;
+    this._idleAnimationId = null;
+    this._idleStartedAt = 0;
+    this._lastIdleMotionAt = 0;
+    this._nextIdleMotionDelayMs = this.getNextIdleMotionDelayMs();
   }
 
   private static _instance: Live2dManager;
@@ -513,4 +662,8 @@ export class Live2dManager {
   private _lipSyncAnimationId: number | null;
   private _playbackBlockUntil: number;
   private _playbackCooldownTimer: number | null;
+  private _idleAnimationId: number | null;
+  private _idleStartedAt: number;
+  private _lastIdleMotionAt: number;
+  private _nextIdleMotionDelayMs: number;
 }

@@ -93,6 +93,31 @@ export interface LoginResponse {
   user: UserInfo;
 }
 
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  name?: string;
+  age?: number;
+  gender?: string;
+  address?: string;
+}
+
+export interface WechatLoginRequest {
+  wechat_openid: string;
+}
+
+export interface WechatBindLoginRequest {
+  username: string;
+  password: string;
+  wechat_openid: string;
+}
+
+export interface WechatOAuthConfig {
+  enabled: boolean;
+  app_id?: string;
+  scope?: string;
+}
+
 export interface UserInfo {
   id: number;
   username: string;
@@ -154,6 +179,55 @@ export async function login(req: LoginRequest): Promise<LoginResponse> {
     body: JSON.stringify(req),
   });
   return parseResponse(res);
+}
+
+export async function register(req: RegisterRequest): Promise<LoginResponse> {
+  const url = getHost() + ADH_PREFIX + "/user/register";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return parseResponse(res);
+}
+
+export async function wechatLogin(req: WechatLoginRequest): Promise<LoginResponse> {
+  const url = getHost() + ADH_PREFIX + "/user/wechat-login";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return parseResponse(res);
+}
+
+export async function wechatBindLogin(req: WechatBindLoginRequest): Promise<LoginResponse> {
+  const url = getHost() + ADH_PREFIX + "/user/wechat-bind-login";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return parseResponse(res);
+}
+
+export async function getWechatOAuthConfig(): Promise<WechatOAuthConfig> {
+  const data = await adhGet("/user/wechat/oauth-config");
+  return data.data || data;
+}
+
+export async function getWechatOAuthUrl(redirectUri?: string): Promise<string> {
+  const url = getHost() + ADH_PREFIX + "/user/wechat/oauth-url";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      redirect_uri: redirectUri,
+      state: "adh",
+    }),
+  });
+  const data = await parseResponse(res);
+  return data.url;
 }
 
 export async function getUserProfile(): Promise<UserInfo> {

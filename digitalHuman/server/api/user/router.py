@@ -4,13 +4,15 @@ User management API router - MySQL version
 """
 import json
 import os
+from urllib.parse import urlencode
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Union
 
 import aiomysql
 import bcrypt
+import httpx
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, Query
 
 from digitalHuman.database import get_db
 
@@ -19,6 +21,10 @@ router = APIRouter()
 JWT_SECRET = os.getenv("DHC_JWT_SECRET", "change-me-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 24
+WECHAT_APP_ID = os.getenv("DHC_WECHAT_APP_ID", "").strip()
+WECHAT_APP_SECRET = os.getenv("DHC_WECHAT_APP_SECRET", "").strip()
+WECHAT_REDIRECT_URI = os.getenv("DHC_WECHAT_REDIRECT_URI", "").strip()
+WECHAT_OAUTH_SCOPE = os.getenv("DHC_WECHAT_OAUTH_SCOPE", "snsapi_login").strip()
 
 
 # ─── Pydantic Models ──────────────────────────────────────────────────────────
@@ -29,6 +35,35 @@ from pydantic import BaseModel
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    name: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    avatar: Optional[str] = None
+
+
+class WechatLoginRequest(BaseModel):
+    wechat_openid: str
+
+
+class WechatBindLoginRequest(BaseModel):
+    username: str
+    password: str
+    wechat_openid: str
+
+
+class WechatOAuthUrlRequest(BaseModel):
+    redirect_uri: Optional[str] = None
+    state: Optional[str] = None
+
+
+class WechatOAuthCallbackRequest(BaseModel):
+    code: str
 
 
 class UserCreateRequest(BaseModel):
@@ -170,6 +205,73 @@ def _row_to_dict(row) -> dict:
     return dict(row)
 
 
+def _public_user(row) -> dict:
+    user = _row_to_dict(row)
+    if user is None:
+        return None
+    user.pop("password_hash", None)
+    return user
+
+
+def _login_payload(row) -> dict:
+    user = _public_user(row)
+    role = user.get("role", "user") or "user"
+    token = _create_token(user["id"], user["username"], role)
+    return {"code": 0, "token": token, "user": user}
+
+
+async def _ensure_wechat_openid_column(cur):
+    await cur.execute("SHOW COLUMNS FROM users LIKE 'wechat_openid'")
+    exists = await cur.fetchone()
+    if not exists:
+        await cur.execute("ALTER TABLE users ADD COLUMN wechat_openid VARCHAR(128) NULL")
+
+
+def _clean_required(value: str, field_name: str, min_len: int = 1) -> str:
+    cleaned = (value or "").strip()
+    if len(cleaned) < min_len:
+        raise HTTPException(status_code=400, detail=f"{field_name}不能为空")
+    return cleaned
+
+
+def _wechat_oauth_ready() -> bool:
+    return bool(WECHAT_APP_ID and WECHAT_APP_SECRET)
+
+
+def _wechat_auth_url(redirect_uri: Optional[str] = None, state: Optional[str] = None) -> str:
+    target_redirect_uri = (redirect_uri or WECHAT_REDIRECT_URI).strip()
+    if not WECHAT_APP_ID or not target_redirect_uri:
+        raise HTTPException(status_code=503, detail="微信开放平台未配置")
+    query = urlencode({
+        "appid": WECHAT_APP_ID,
+        "redirect_uri": target_redirect_uri,
+        "response_type": "code",
+        "scope": WECHAT_OAUTH_SCOPE or "snsapi_login",
+        "state": state or "adh",
+    })
+    return f"https://open.weixin.qq.com/connect/qrconnect?{query}#wechat_redirect"
+
+
+async def _exchange_wechat_code(code: str) -> str:
+    if not _wechat_oauth_ready():
+        raise HTTPException(status_code=503, detail="微信开放平台未配置")
+    params = {
+        "appid": WECHAT_APP_ID,
+        "secret": WECHAT_APP_SECRET,
+        "code": code,
+        "grant_type": "authorization_code",
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.get("https://api.weixin.qq.com/sns/oauth2/access_token", params=params)
+    data = response.json()
+    if data.get("errcode"):
+        raise HTTPException(status_code=400, detail=data.get("errmsg") or "微信授权失败")
+    openid = data.get("openid") or data.get("unionid")
+    if not openid:
+        raise HTTPException(status_code=400, detail="微信授权未返回用户标识")
+    return str(openid)
+
+
 # ─── Startup: ensure admin account exists ─────────────────────────────────────
 
 async def ensure_default_admin():
@@ -205,11 +307,116 @@ async def login(req: LoginRequest):
             row = await cur.fetchone()
     if row is None or not _verify_password(req.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
-    user = _row_to_dict(row)
-    user.pop("password_hash", None)
-    role = user.get("role", "user") or "user"
-    token = _create_token(user["id"], user["username"], role)
-    return {"code": 0, "token": token, "user": user}
+    return _login_payload(row)
+
+
+@router.post("/user/register")
+async def register(req: RegisterRequest):
+    username = _clean_required(req.username, "username", 3)
+    password = _clean_required(req.password, "password", 6)
+    name = (req.name or username).strip()
+    pool = await get_db()
+    pwd_hash = _hash_password(password)
+    try:
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    "INSERT INTO users (username, password_hash, name, age, gender, address, avatar, role) VALUES (%s, %s, %s, %s, %s, %s, %s, 'user')",
+                    (username, pwd_hash, name, req.age, req.gender, req.address, req.avatar),
+                )
+                await cur.execute(
+                    "SELECT id, username, password_hash, name, age, gender, address, avatar, role, created_at FROM users WHERE username = %s",
+                    (username,),
+                )
+                row = await cur.fetchone()
+    except Exception as e:
+        if "Duplicate entry" in str(e) or "1062" in str(e):
+            raise HTTPException(status_code=409, detail="用户名已存在")
+        raise HTTPException(status_code=500, detail=str(e))
+    return _login_payload(row)
+
+
+@router.post("/user/wechat-login")
+async def wechat_login(req: WechatLoginRequest):
+    wechat_openid = _clean_required(req.wechat_openid, "wechat_openid")
+    pool = await get_db()
+    async with pool.acquire() as conn:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await _ensure_wechat_openid_column(cur)
+            await cur.execute(
+                "SELECT id, username, password_hash, name, age, gender, address, avatar, role, created_at FROM users WHERE wechat_openid = %s",
+                (wechat_openid,),
+            )
+            row = await cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="该微信尚未绑定账号，请先绑定")
+    return _login_payload(row)
+
+
+@router.get("/user/wechat/oauth-config")
+async def wechat_oauth_config():
+    return {
+        "code": 0,
+        "enabled": _wechat_oauth_ready(),
+        "app_id": WECHAT_APP_ID if WECHAT_APP_ID else None,
+        "scope": WECHAT_OAUTH_SCOPE or "snsapi_login",
+    }
+
+
+@router.post("/user/wechat/oauth-url")
+async def wechat_oauth_url(req: WechatOAuthUrlRequest):
+    return {"code": 0, "url": _wechat_auth_url(req.redirect_uri, req.state)}
+
+
+@router.get("/user/wechat/oauth-url")
+async def wechat_oauth_url_get(
+    redirect_uri: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+):
+    return {"code": 0, "url": _wechat_auth_url(redirect_uri, state)}
+
+
+@router.post("/user/wechat/oauth-login")
+async def wechat_oauth_login(req: WechatOAuthCallbackRequest):
+    wechat_openid = await _exchange_wechat_code(_clean_required(req.code, "code"))
+    return await wechat_login(WechatLoginRequest(wechat_openid=wechat_openid))
+
+
+@router.post("/user/wechat-bind-login")
+async def wechat_bind_login(req: WechatBindLoginRequest):
+    username = _clean_required(req.username, "username", 3)
+    password = _clean_required(req.password, "password")
+    wechat_openid = _clean_required(req.wechat_openid, "wechat_openid")
+    pool = await get_db()
+    async with pool.acquire() as conn:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await _ensure_wechat_openid_column(cur)
+            await cur.execute(
+                "SELECT id FROM users WHERE wechat_openid = %s AND username <> %s",
+                (wechat_openid, username),
+            )
+            bound = await cur.fetchone()
+            if bound:
+                raise HTTPException(status_code=409, detail="该微信已绑定其他账号")
+
+            await cur.execute(
+                "SELECT id, username, password_hash, name, age, gender, address, avatar, role, created_at FROM users WHERE username = %s",
+                (username,),
+            )
+            row = await cur.fetchone()
+            if row is None or not _verify_password(password, row["password_hash"]):
+                raise HTTPException(status_code=401, detail="用户名或密码错误")
+
+            await cur.execute(
+                "UPDATE users SET wechat_openid = %s WHERE id = %s",
+                (wechat_openid, row["id"]),
+            )
+            await cur.execute(
+                "SELECT id, username, password_hash, name, age, gender, address, avatar, role, created_at FROM users WHERE id = %s",
+                (row["id"],),
+            )
+            updated = await cur.fetchone()
+    return _login_payload(updated)
 
 
 @router.get("/user/profile")

@@ -18,7 +18,7 @@ const ChatThink = memo(({message, thinking}: {message: string, thinking: boolean
             <div className='flex flex-col gap-1'>
                 <p className='text-2xl'>🤔</p>
                 <Markdown
-                    className='text-gray-400 text-sm border-l-2 px-2 border-gray-400'
+                    className='text-slate-700 text-sm border-l-2 px-2 border-slate-500'
                     remarkPlugins={[remarkGfm]}
                 >
                     {message.replace(/\\n/g, "  \n")}
@@ -67,12 +67,12 @@ export const ChatRecord = ({ className }: { className?: string }) => {
                         )}>
                             <div className={clsx(
                                 "min-w-8",
-                                message.role == CHAT_ROLE.HUMAN ? "text-gray-400 order-2" : "text-yellow-400 order-1"
+                                message.role == CHAT_ROLE.HUMAN ? "text-slate-700 order-2" : "text-yellow-500 order-1"
                             )}>
                                 {message.role == CHAT_ROLE.HUMAN ? <UserIcon className='size-6' /> : <SunIcon className='size-6' />}
                             </div>
                             <Card className={clsx(
-                                "max-w-md opacity-80",
+                                "max-w-md opacity-95 shadow-lg",
                                 message.role == CHAT_ROLE.HUMAN ? "order-1" : "order-2"
                                 )}
                             >

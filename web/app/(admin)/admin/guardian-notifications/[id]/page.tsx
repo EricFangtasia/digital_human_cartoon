@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -155,11 +155,11 @@ export default function GuardianNotificationDetailPage() {
           ← 返回监护人列表
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 mt-2">通知渠道配置</h1>
-        <p className="text-gray-500 text-sm mt-1">配置该监护人的危机事件通知推送渠道</p>
+        <p className="text-gray-700 text-sm mt-1">配置该监护人的危机事件通知推送渠道</p>
       </div>
 
       {loading ? (
-        <div className="text-center text-gray-400 py-12">加载中...</div>
+        <div className="text-center text-gray-700 py-12">加载中...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {CHANNELS.map((ch) => {
@@ -195,7 +195,7 @@ export default function GuardianNotificationDetailPage() {
                   </div>
                 </CardHeader>
                 <CardBody className="px-6 pb-6 pt-1">
-                  <div className="text-xs text-gray-500 mb-3">
+                  <div className="text-xs text-gray-700 mb-3">
                     {ch.fields.map((f) => f.label).join(" · ")}
                   </div>
                   <Button
@@ -244,3 +244,4 @@ export default function GuardianNotificationDetailPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -110,14 +110,14 @@ export default function UserDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-gray-400">加载中...</div>
+      <div className="p-8 text-center text-gray-700">加载中...</div>
     );
   }
 
   if (!user) {
     return (
       <div className="p-8">
-        <p className="text-gray-500">用户不存在</p>
+        <p className="text-gray-700">用户不存在</p>
         <Link href="/admin/users">
           <Button className="mt-4" variant="flat">返回用户列表</Button>
         </Link>
@@ -134,7 +134,7 @@ export default function UserDetailPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
-          <p className="text-gray-500 text-sm">用户详情</p>
+          <p className="text-gray-700 text-sm">用户详情</p>
         </div>
       </div>
 
@@ -154,7 +154,7 @@ export default function UserDetailPage() {
               { label: "注册时间", value: user.created_at ? new Date(user.created_at).toLocaleDateString("zh-CN") : "-" },
             ].map((item) => (
               <div key={item.label}>
-                <p className="text-xs text-gray-500 mb-0.5">{item.label}</p>
+                <p className="text-xs text-gray-700 mb-0.5">{item.label}</p>
                 <p className="text-sm font-medium text-gray-900">{item.value}</p>
               </div>
             ))}
@@ -178,7 +178,7 @@ export default function UserDetailPage() {
             <div className="border border-blue-100 rounded-lg p-4 bg-blue-50 space-y-3">
               <p className="text-sm font-medium text-gray-700">从系统中选择监护人用户</p>
               {availableGuardianUsers.length === 0 ? (
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-gray-700">
                   暂无可选的监护人用户（所有监护人角色用户均已绑定，或系统中没有监护人角色用户）
                 </p>
               ) : (
@@ -221,7 +221,7 @@ export default function UserDetailPage() {
 
           {/* 监护人列表 */}
           {guardians.length === 0 ? (
-            <p className="text-gray-400 text-sm">暂无监护人记录</p>
+            <p className="text-gray-700 text-sm">暂无监护人记录</p>
           ) : (
             <div className="space-y-3">
               {guardians.map((g: any, i: number) => (
@@ -236,7 +236,7 @@ export default function UserDetailPage() {
                     <div>
                       <p className="font-medium text-gray-800">{g.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        {g.phone && <p className="text-xs text-gray-500">{g.phone}</p>}
+                        {g.phone && <p className="text-xs text-gray-700">{g.phone}</p>}
                         {g.guardian_user_id ? (
                           <Chip size="sm" variant="flat" color="success" className="h-4 text-xs">系统用户</Chip>
                         ) : (
@@ -267,7 +267,7 @@ export default function UserDetailPage() {
         </CardHeader>
         <CardBody className="px-6 pb-6">
           {conversations.length === 0 ? (
-            <p className="text-gray-400 text-sm">暂无对话记录</p>
+            <p className="text-gray-700 text-sm">暂无对话记录</p>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {conversations.map((c) => (
@@ -277,7 +277,7 @@ export default function UserDetailPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <p className="text-sm text-gray-800 flex-1 line-clamp-2">{c.content}</p>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                    <span className="text-xs text-gray-700 whitespace-nowrap">
                       {c.created_at ? new Date(c.created_at).toLocaleString("zh-CN") : ""}
                     </span>
                   </div>
@@ -290,3 +290,4 @@ export default function UserDetailPage() {
     </div>
   );
 }
+

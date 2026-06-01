@@ -1,0 +1,60 @@
+NAME: "tencentRealtime"
+VERSION: "v0.0.1"
+DESC: "Tencent Cloud realtime streaming ASR for Android PCM audio"
+META: {
+  official: "https://cloud.tencent.com/document/product/1093/48982",
+  configuration: "https://console.cloud.tencent.com/asr",
+  tips: "Credentials are read from backend environment variables by default.",
+  fee: "Tencent Cloud realtime ASR billing",
+  infer_type: "stream"
+}
+PARAMETERS: [
+  {
+    name: "app_id",
+    description: "Tencent Cloud ASR AppId. Prefer backend env TENCENT_ASR_APP_ID.",
+    type: "string",
+    required: false,
+    choices: [],
+    default: ""
+  },
+  {
+    name: "secret_id",
+    description: "Tencent Cloud SecretId. Prefer backend env TENCENT_ASR_SECRET_ID.",
+    type: "string",
+    required: false,
+    choices: [],
+    default: ""
+  },
+  {
+    name: "secret_key",
+    description: "Tencent Cloud SecretKey. Prefer backend env TENCENT_ASR_SECRET_KEY.",
+    type: "string",
+    required: false,
+    choices: [],
+    default: ""
+  },
+  {
+    name: "engine_model_type",
+    description: "Tencent realtime ASR model.",
+    type: "string",
+    required: false,
+    choices: ["16k_zh", "16k_zh-PY", "16k_zh-TW"],
+    default: "16k_zh"
+  },
+  {
+    name: "voice_format",
+    description: "1 means PCM in Tencent realtime ASR.",
+    type: "int",
+    required: false,
+    choices: [1],
+    default: 1
+  },
+  {
+    name: "needvad",
+    description: "Enable Tencent server VAD.",
+    type: "int",
+    required: false,
+    choices: [0, 1],
+    default: 1
+  }
+]

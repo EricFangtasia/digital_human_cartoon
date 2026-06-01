@@ -22,3 +22,24 @@ WEB_PATH = os.path.join(ROOT_PATH, "web")
 if not os.path.exists(OUTPUT_PATH):
     os.makedirs(OUTPUT_PATH)
     warnings.warn(f"Create output path: {OUTPUT_PATH}")
+
+
+def _load_env_file(path: str) -> None:
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except Exception as exc:
+        warnings.warn(f"Failed to load env file {path}: {exc}")
+
+
+_load_env_file(os.path.join(ROOT_PATH, ".env"))

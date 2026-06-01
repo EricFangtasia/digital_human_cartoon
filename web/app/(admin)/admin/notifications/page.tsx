@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -18,7 +18,8 @@ export default function NotificationsRedirectPage() {
 
   return (
     <div className="w-full h-screen flex items-center justify-center">
-      <div className="text-gray-400">跳转中...</div>
+      <div className="text-gray-700">跳转中...</div>
     </div>
   );
 }
+

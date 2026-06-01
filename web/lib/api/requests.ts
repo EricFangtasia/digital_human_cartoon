@@ -7,11 +7,9 @@ const SERVER_PORT = process.env.NEXT_PUBLIC_SERVER_PORT;
 
 export function getHost(): string {
   const SERVER_IP = process.env.NEXT_PUBLIC_SERVER_IP || globalThis.location?.hostname;
-  // 动态检测当前页面的协议和端口，支持HTTPS安全上下文
-  const protocol = globalThis.location?.protocol?.replace(':', '') || SERVER_PROTOCOL || 'http';
-  const port = globalThis.location?.port || SERVER_PORT || '80';
+  const protocol = SERVER_PROTOCOL || globalThis.location?.protocol?.replace(':', '') || 'http';
+  const port = SERVER_PORT || globalThis.location?.port || '80';
   let host = protocol + "://" + SERVER_IP;
-  // 非默认值端口显式添加
   if (port != "80" && port != "443") {
       host = host + ":" + port;
   }
@@ -27,6 +25,17 @@ function getUrl(path: string): string {
 export function getWsUrl(path: string): string {
   // 如果包含http则直接返回(完整路径)
   if (path.includes("ws")) return path;
+  if (typeof window !== "undefined") {
+    const searchParams = new URLSearchParams(window.location.search);
+    const androidVoice = searchParams.get("voice");
+    if (
+      searchParams.get("app") === "android" &&
+      (androidVoice === "pcm" || androidVoice === "cloud") &&
+      path.startsWith("/adh/")
+    ) {
+      return `ws://${globalThis.location.host}${path}`;
+    }
+  }
   return getHost().replace("https", "wss").replace("http", "ws") + path;
 }
 

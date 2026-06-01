@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">管理后台</h1>
-            <p className="text-sm text-gray-500 mt-1">沐光而行 · 心智成长关护系统</p>
+            <p className="text-sm text-gray-700 mt-1">沐光而行 · 心智成长关护系统</p>
           </div>
 
           <div className="space-y-4">
@@ -101,3 +101,4 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -76,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="w-full h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <div className="text-sm text-gray-400">加载中...</div>
+          <div className="text-sm text-gray-700">加载中...</div>
         </div>
       </div>
     );
@@ -134,12 +134,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{user?.name || user?.username}</p>
-              <p className="text-xs text-gray-500">{roleLabel}</p>
+              <p className="text-xs text-gray-700">{roleLabel}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full text-xs text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg px-3 py-1.5 transition-colors text-left"
+            className="w-full text-xs text-gray-700 hover:text-red-500 hover:bg-red-50 rounded-lg px-3 py-1.5 transition-colors text-left"
           >
             退出登录
           </button>
@@ -153,3 +153,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
+

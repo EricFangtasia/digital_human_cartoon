@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Card, CardBody } from "@heroui/react";
@@ -19,7 +19,7 @@ function StatCard({ title, value, icon, color, href }: StatCardProps) {
       <CardBody className="p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-500 mb-1">{title}</p>
+            <p className="text-sm text-gray-700 mb-1">{title}</p>
             <p className={`text-3xl font-bold ${color}`}>{value}</p>
           </div>
           <div className={`text-4xl`}>{icon}</div>
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">仪表盘</h1>
-        <p className="text-gray-500 text-sm mt-1">系统数据概览</p>
+        <p className="text-gray-700 text-sm mt-1">系统数据概览</p>
       </div>
 
       {/* 统计卡片 */}
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
                 <CardBody className="p-4 text-center">
                   <div className="text-3xl mb-2">{item.icon}</div>
                   <p className="font-medium text-gray-800 text-sm">{item.label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                  <p className="text-xs text-gray-700 mt-0.5">{item.desc}</p>
                 </CardBody>
               </Card>
             </Link>
@@ -139,11 +139,11 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
               { label: "系统名称", value: "沐光而行 · 心智成长关护系统" },
-              { label: "后端服务", value: "http://192.168.0.97:8880" },
+              { label: "后端服务", value: "http://127.0.0.1:8881" },
               { label: "前端框架", value: "Next.js 15 + HeroUI" },
             ].map((item) => (
               <div key={item.label}>
-                <p className="text-xs text-gray-500">{item.label}</p>
+                <p className="text-xs text-gray-700">{item.label}</p>
                 <p className="text-sm font-medium text-gray-800 mt-0.5">{item.value}</p>
               </div>
             ))}
@@ -153,3 +153,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+

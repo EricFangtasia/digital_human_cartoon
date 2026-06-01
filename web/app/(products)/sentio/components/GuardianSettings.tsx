@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { getMyGuardians, addMyGuardian, deleteMyGuardian, MyGuardian } from '@/lib/api/adh';
@@ -107,12 +107,12 @@ export function GuardianSettings({ isOpen, onClose }: GuardianSettingsProps) {
                         onClick={onClose}
                         className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
                     >
-                        <XMarkIcon className="w-4 h-4 text-gray-500" />
+                        <XMarkIcon className="w-4 h-4 text-gray-700" />
                     </button>
                 </div>
 
                 {/* Description */}
-                <p className="text-sm text-gray-500 px-6 pb-4 leading-relaxed">
+                <p className="text-sm text-gray-700 px-6 pb-4 leading-relaxed">
                     当系统检测到心理危机时，将通过监护人配置的联系方式发送紧急通知。
                 </p>
 
@@ -126,11 +126,11 @@ export function GuardianSettings({ isOpen, onClose }: GuardianSettingsProps) {
                 {/* List */}
                 <div className="flex-1 overflow-y-auto px-6">
                     {loading ? (
-                        <div className="py-8 text-center text-gray-400 text-sm">加载中...</div>
+                        <div className="py-8 text-center text-gray-700 text-sm">加载中...</div>
                     ) : guardians.length === 0 && !showAdd ? (
                         <div className="py-10 text-center">
                             <ShieldCheckIcon className="w-10 h-10 text-purple-200 mx-auto mb-2" />
-                            <p className="text-gray-400 text-sm">暂无监护人，请添加</p>
+                            <p className="text-gray-700 text-sm">暂无监护人，请添加</p>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -144,7 +144,7 @@ export function GuardianSettings({ isOpen, onClose }: GuardianSettingsProps) {
                                     >
                                         <div className="flex-1 min-w-0">
                                             <div className="font-medium text-gray-800 text-sm">{g.name}</div>
-                                            <div className="text-xs text-gray-500 mt-0.5 truncate">
+                                            <div className="text-xs text-gray-700 mt-0.5 truncate">
                                                 {contacts.join(' · ')}
                                             </div>
                                         </div>
@@ -250,3 +250,4 @@ export function GuardianSettings({ isOpen, onClose }: GuardianSettingsProps) {
         </div>
     );
 }
+

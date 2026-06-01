@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -37,11 +37,11 @@ export default function GuardianNotificationsPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">监护人通知配置</h1>
-        <p className="text-gray-500 text-sm mt-1">管理所有监护人的危机事件通知推送渠道</p>
+        <p className="text-gray-700 text-sm mt-1">管理所有监护人的危机事件通知推送渠道</p>
       </div>
 
       {loading ? (
-        <div className="text-center text-gray-400 py-12">加载中...</div>
+        <div className="text-center text-gray-700 py-12">加载中...</div>
       ) : error ? (
         <div className="text-center py-12">
           <p className="text-red-500 mb-4">{error}</p>
@@ -53,7 +53,7 @@ export default function GuardianNotificationsPage() {
           </button>
         </div>
       ) : guardians.length === 0 ? (
-        <div className="text-center text-gray-400 py-12">暂无监护人数据</div>
+        <div className="text-center text-gray-700 py-12">暂无监护人数据</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {guardians.map((g) => (
@@ -79,7 +79,7 @@ export default function GuardianNotificationsPage() {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-700">
                 <p>账号：{g.username}</p>
                 {g.created_at && (
                   <p className="mt-1">注册时间：{new Date(g.created_at).toLocaleDateString()}</p>
@@ -99,3 +99,4 @@ export default function GuardianNotificationsPage() {
     </div>
   );
 }
+

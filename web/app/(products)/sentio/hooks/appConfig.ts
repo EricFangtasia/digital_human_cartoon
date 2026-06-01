@@ -127,7 +127,7 @@ export function useAppConfig() {
     }
 
     const resetAppEngine = (engine?: string) => {
-        setAsrEngine(engine || "Dify");
+        setAsrEngine(engine || "funasrStreaming");
         setTtsEngine(engine || "EdgeTTS");
         setAgentEngine(engine || "LongCat");
         setAsrSettings({});

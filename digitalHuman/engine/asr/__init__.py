@@ -5,6 +5,7 @@
 '''
 
 from .tencentASR import TencentApiAsr
+from .tencentRealtimeASR import TencentRealtimeAsr
 from .difyASR import DifyApiAsr
 from .cozeASR import CozeApiAsr
 from .funasrStreamingASR import FunasrStreamingAsr

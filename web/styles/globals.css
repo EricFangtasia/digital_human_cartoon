@@ -17,6 +17,19 @@
   .full-height-minus-64px {
     height: calc(100vh - 64px);
   }
+
+  .contrast-safe :where(.text-white\/55, .text-white\/60, .text-white\/65, .text-white\/68, .text-white\/70, .text-white\/72, .text-white\/74, .text-white\/76, .text-white\/78, .text-white\/82, .text-white\/85) {
+    color: rgba(255, 255, 255, 0.94);
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.45);
+  }
+
+  .contrast-safe :where(.text-slate-400, .text-slate-500, .text-gray-400, .text-gray-500, .text-zinc-400, .text-neutral-400) {
+    color: rgb(51, 65, 85);
+  }
+
+  .contrast-safe :where(.bg-slate-950\/25, .bg-slate-950\/28, .bg-slate-950\/35, .bg-slate-950\/38, .bg-slate-900\/25, .bg-slate-900\/35, .bg-white\/10, .bg-white\/12, .bg-white\/14, .bg-white\/16, .bg-white\/18) {
+    backdrop-filter: blur(14px);
+  }
 }
 html, body, main {
   height: 100%;

@@ -17,8 +17,9 @@ import clsx from 'clsx';
 import { Live2dManager } from '@/lib/live2d/live2dManager';
 
 let micRecoder: Recorder | null = null;
-const NATIVE_SPEECH_SILENCE_MS = 900;
-const NATIVE_SPEECH_START_TIMEOUT_MS = 450;
+const NATIVE_SPEECH_SILENCE_MS = 1000;
+const NATIVE_SPEECH_FINAL_GRACE_MS = 450;
+const NATIVE_SPEECH_START_TIMEOUT_MS = 3000;
 const NATIVE_SPEECH_STALE_RESTART_MS = 12000;
 const NATIVE_SPEECH_STALE_RESTART_COOLDOWN_MS = 5000;
 const STREAM_FINAL_STALE_MS = 5000;
@@ -28,12 +29,13 @@ const STREAM_STALE_RESULT_IGNORE_MS = 400;
 const STREAM_ACTIVITY_RMS_THRESHOLD = 0.02;
 const STREAM_FINAL_SILENCE_MS = 900;
 const STREAM_FINALIZING_TIMEOUT_MS = 1800;
-const STREAM_PARTIAL_COMMIT_MAX_MS = 3000;
-const STREAM_PARTIAL_STABLE_COMMIT_MS = 900;
+const STREAM_PARTIAL_COMMIT_MAX_MS = 5200;
+const STREAM_PARTIAL_STABLE_COMMIT_MS = 1200;
 const ASSISTANT_ECHO_TTL_MS = 5000;
 const ASSISTANT_ECHO_SIMILARITY_THRESHOLD = 0.84;
 const ASSISTANT_SHORT_ECHO_GRACE_MS = 80;
 const ASSISTANT_SHORT_ECHO_MAX_LENGTH = 3;
+const OPENING_GREETING_VOICE_FALLBACK_MS = 8000;
 
 const normalizeEchoText = (text: string) => {
     return text
@@ -86,6 +88,27 @@ const isLikelyShortEchoText = (input: string, source: string) => {
     return normalizedSource.includes(normalizedInput);
 }
 
+const base64ToUint8Array = (base64: string) => {
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+const pcm16BytesToFloat32 = (bytes: Uint8Array) => {
+    const samples = new Float32Array(Math.floor(bytes.length / 2));
+    for (let i = 0; i < samples.length; i++) {
+        const low = bytes[i * 2];
+        const high = bytes[i * 2 + 1];
+        const sample = (high << 8) | low;
+        const signed = sample >= 0x8000 ? sample - 0x10000 : sample;
+        samples[i] = signed / 32768;
+    }
+    return samples;
+}
+
 const useTtsPlaybackGuard = () => {
     const [blocked, setBlocked] = useState(false);
     const blockedRef = useRef(false);
@@ -129,9 +152,12 @@ export const ChatInput = memo(({
     const { blocked: ttsBlocked, blockedRef: ttsBlockedRef } = useTtsPlaybackGuard();
     const { enable: enableASR, engine: asrEngine, infer_type: asrInferType, settings: asrSettings, preferBrowserCloud, handsFreeMode } = useSentioAsrStore();
     const { chat, abort, chatting } = useChatWithAgent();
+    const chattingRef = useRef(false);
     const { startAudioTimer, stopAudioTimer } = useAudioTimer();
     const streamAudioRecoderRef = useRef<AudioRecoder | null>(null);
     const streamAsrWsClientRef = useRef<ReturnType<typeof createASRWebsocketClient> | null>(null);
+    const nativePcmActiveRef = useRef(false);
+    const nativePcmAvailabilityLoggedRef = useRef(false);
     const streamEngineReadyRef = useRef(false);
     const latestStreamSessionIdRef = useRef(0);
     const latestFileAsrRequestIdRef = useRef(0);
@@ -148,6 +174,7 @@ export const ChatInput = memo(({
     const nativeFallbackToStreamRef = useRef(false);
     const nativeTranscriptDraftActiveRef = useRef(false);
     const nativeSubmittedRef = useRef(false);
+    const nativeHasFinalResultRef = useRef(false);
     const nativeRestartPendingRef = useRef(false);
     const startMicRecordRef = useRef(false);
     const startAsrConvertRef = useRef(false);
@@ -177,10 +204,44 @@ export const ChatInput = memo(({
     const streamSubmittedCurrentUtteranceRef = useRef(false);
 
     const shouldUseRealtimeVoice = () => {
-        return shouldPreferNativeSpeech();
+        return shouldPreferNativePcm() || shouldForceCloudStream() || shouldPreferNativeSpeech();
+    }
+
+    const shouldForceCloudStream = () => {
+        if (typeof window === "undefined") {
+            return false;
+        }
+        const searchParams = new URLSearchParams(window.location.search);
+        return searchParams.get("voice") === "cloud" ||
+            searchParams.get("asr") === "tencent" ||
+            searchParams.get("asr") === "cloud";
+    }
+
+    const shouldPreferNativePcm = () => {
+        if (typeof window === "undefined") {
+            return false;
+        }
+        const searchParams = new URLSearchParams(window.location.search);
+        const wantsNativePcm = searchParams.get("voice") === "pcm" || searchParams.get("voice") === "cloud";
+        const hasNativePcm = !!(window as any).ADHNativeSpeech?.startPcm;
+        if (wantsNativePcm && !nativePcmAvailabilityLoggedRef.current) {
+            nativePcmAvailabilityLoggedRef.current = true;
+            console.info("[Voice] native PCM capability", {
+                wantsNativePcm,
+                hasNativeBridge: !!(window as any).ADHNativeSpeech,
+                hasNativePcm
+            });
+        }
+        return wantsNativePcm && hasNativePcm;
     }
 
     const shouldPreferNativeSpeech = () => {
+        if (shouldPreferNativePcm()) {
+            return false;
+        }
+        if (shouldForceCloudStream()) {
+            return false;
+        }
         return !!getNativeSpeechRecognitionCtor();
     }
 
@@ -195,7 +256,7 @@ export const ChatInput = memo(({
     }
 
     const isNativeVoiceBusy = () => {
-        return !!nativeRecognitionRef.current || startMicRecordRef.current || startAsrConvertRef.current;
+        return !!nativeRecognitionRef.current || nativePcmActiveRef.current || startMicRecordRef.current || startAsrConvertRef.current;
     }
 
     const rememberAssistantSpeechText = (text: string, at: number = Date.now()) => {
@@ -331,6 +392,15 @@ export const ChatInput = memo(({
         streamLastTranscriptAtRef.current = 0;
         streamUtteranceStartedAtRef.current = 0;
         streamSubmittedCurrentUtteranceRef.current = false;
+        if (nativePcmActiveRef.current) {
+            try {
+                (window as any).ADHNativeSpeech?.stopPcm?.();
+            } catch {}
+        }
+        nativePcmActiveRef.current = false;
+        try {
+            delete (window as any).__ADHNativePcmChunk;
+        } catch {}
         clearStreamTranscriptDraft();
         streamAudioRecoderRef.current?.stop();
         streamAudioRecoderRef.current = null;
@@ -353,10 +423,14 @@ export const ChatInput = memo(({
     }
 
     const scheduleNativeRestart = (delayMs: number = 0) => {
-        if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech()) {
+        if (!handsFreeRunningRef.current || !shouldUseRealtimeVoice()) {
             return;
         }
         setVoiceModeActive(true);
+        if (chattingRef.current) {
+            nativeRestartPendingRef.current = true;
+            return;
+        }
         if (ttsBlockedRef.current) {
             nativeRestartPendingRef.current = true;
             return;
@@ -369,12 +443,20 @@ export const ChatInput = memo(({
         clearHandsFreeRestartTimer();
         if (delayMs <= 0) {
             nativeRestartPendingRef.current = false;
-            handleStartNativeRecord();
+            if (shouldPreferNativeSpeech()) {
+                handleStartNativeRecord();
+            } else {
+                handleStartStreamRecord();
+            }
             return;
         }
         handsFreeRestartTimerRef.current = setTimeout(() => {
             handsFreeRestartTimerRef.current = null;
-            if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech()) {
+            if (!handsFreeRunningRef.current || !shouldUseRealtimeVoice()) {
+                return;
+            }
+            if (chattingRef.current) {
+                nativeRestartPendingRef.current = true;
                 return;
             }
             if (ttsBlockedRef.current) {
@@ -385,7 +467,11 @@ export const ChatInput = memo(({
                 nativeRestartPendingRef.current = true;
                 return;
             }
-            handleStartNativeRecord();
+            if (shouldPreferNativeSpeech()) {
+                handleStartNativeRecord();
+            } else {
+                handleStartStreamRecord();
+            }
         }, delayMs);
     }
 
@@ -462,6 +548,7 @@ export const ChatInput = memo(({
         nativeShouldSendRef.current = false;
         nativeFallbackToStreamRef.current = false;
         nativeSubmittedRef.current = false;
+        nativeHasFinalResultRef.current = false;
         clearNativeListeningWatchdog();
 
         const recognition = nativeRecognitionRef.current;
@@ -566,6 +653,17 @@ export const ChatInput = memo(({
     const scheduleNativeSpeechStop = () => {
         clearNativeSilenceTimer();
         nativeSilenceTimerRef.current = setTimeout(() => {
+            if (nativeHasFinalResultRef.current) {
+                submitNativeSpeechTranscript();
+                return;
+            }
+            const recognition = nativeRecognitionRef.current;
+            if (recognition) {
+                try {
+                    recognition.stop();
+                    return;
+                } catch {}
+            }
             submitNativeSpeechTranscript();
         }, NATIVE_SPEECH_SILENCE_MS);
     }
@@ -635,8 +733,16 @@ export const ChatInput = memo(({
         streamFinalizingRef.current = false;
         clearStreamFinalizingTimer();
         clearStreamFinalizeTimer();
+        console.info("[Voice] submit stream transcript", {
+            length: finalText.length,
+            text: finalText
+        });
         setMessage(finalText);
         commitStreamTranscriptDraft(finalText);
+        chattingRef.current = true;
+        cleanupStreamSession();
+        setStartMicRecord(false);
+        setStartAsrConvert(false);
         chat(finalText, postProcess, false);
         setMessage("");
         return true;
@@ -647,7 +753,8 @@ export const ChatInput = memo(({
             !continuousStreamActiveRef.current ||
             streamSubmittedCurrentUtteranceRef.current ||
             streamFinalizingRef.current ||
-            ttsBlockedRef.current
+            ttsBlockedRef.current ||
+            chattingRef.current
         ) {
             return;
         }
@@ -708,7 +815,7 @@ export const ChatInput = memo(({
         clearStreamFinalizeTimer();
         streamFinalizeTimerRef.current = setTimeout(() => {
             streamFinalizeTimerRef.current = null;
-            if (!continuousStreamActiveRef.current || ttsBlockedRef.current) {
+            if (!continuousStreamActiveRef.current || ttsBlockedRef.current || chattingRef.current) {
                 return;
             }
             if (Date.now() - streamLastSpeechAtRef.current < STREAM_FINAL_SILENCE_MS) {
@@ -720,7 +827,7 @@ export const ChatInput = memo(({
     }
 
     const trackContinuousStreamSpeech = (chunk: Float32Array) => {
-        if (!continuousStreamActiveRef.current || ttsBlockedRef.current || streamFinalizingRef.current) {
+        if (!continuousStreamActiveRef.current || ttsBlockedRef.current || chattingRef.current || streamFinalizingRef.current) {
             return;
         }
 
@@ -841,7 +948,13 @@ export const ChatInput = memo(({
             setMessage(nextTranscript);
             updateNativeTranscriptDraft(nextTranscript);
 
-            if (nextTranscript.length > 0) {
+            if (hasFinalResult) {
+                nativeHasFinalResultRef.current = true;
+                clearNativeSilenceTimer();
+                nativeSilenceTimerRef.current = setTimeout(() => {
+                    submitNativeSpeechTranscript();
+                }, NATIVE_SPEECH_FINAL_GRACE_MS);
+            } else if (nextTranscript.length > 0) {
                 scheduleNativeSpeechStop();
             }
         };
@@ -1000,6 +1113,7 @@ export const ChatInput = memo(({
         forceStopNativeSpeechRecognition();
         cleanupStreamSession();
         clearNativeTranscriptDraft();
+        const useNativePcm = shouldPreferNativePcm();
         setMessage("");
         setStartAsrConvert(true);
         setVoiceModeActive(true);
@@ -1020,7 +1134,7 @@ export const ChatInput = memo(({
         clearStreamFinalizeTimer();
         const streamSessionId = latestStreamSessionIdRef.current;
 
-        const audioRecoder = new AudioRecoder(
+        const audioRecoder = useNativePcm ? null : new AudioRecoder(
             16000,
             1,
             16000 / 1000 * 60 * 2,
@@ -1038,9 +1152,12 @@ export const ChatInput = memo(({
             }
         );
 
+        const useCloudStream = shouldForceCloudStream();
+        const streamAsrEngine = useNativePcm || useCloudStream ? "tencentRealtime" : asrEngine;
+        const streamAsrSettings = useNativePcm || useCloudStream ? {} : asrSettings;
         const asrWsClient = createASRWebsocketClient({
-            engine: asrEngine,
-            config: asrSettings,
+            engine: streamAsrEngine,
+            config: streamAsrSettings,
             onMessage: (action: string, data: Uint8Array) => {
                 if (streamSessionId !== latestStreamSessionIdRef.current) {
                     return;
@@ -1054,7 +1171,46 @@ export const ChatInput = memo(({
                     case WS_RECV_ACTION_TYPE.ENGINE_STARTED:
                         streamConnectingRef.current = false;
                         streamEngineReadyRef.current = true;
-                        audioRecoder.start().then(() => {
+                        if (useNativePcm) {
+                            setStartMicRecord(true);
+                            setStartAsrConvert(false);
+                            nativePcmActiveRef.current = true;
+                            (window as any).__ADHNativePcmChunk = (base64: string, level: number = 0) => {
+                                if (
+                                    streamSessionId !== latestStreamSessionIdRef.current ||
+                                    !continuousStreamActiveRef.current ||
+                                    !nativePcmActiveRef.current
+                                ) {
+                                    return;
+                                }
+                                const chunk = base64ToUint8Array(base64);
+                                const floatChunk = pcm16BytesToFloat32(chunk);
+                                maybeInterruptContinuousStreamPlayback(floatChunk);
+                                trackContinuousStreamSpeech(floatChunk);
+                                if (ttsBlockedRef.current || streamFinalizingRef.current) {
+                                    return;
+                                }
+                                if (streamEngineReadyRef.current && streamAsrWsClientRef.current?.isConnected()) {
+                                    streamAsrWsClientRef.current.sendMessage(WS_SEND_ACTION_TYPE.ENGINE_PARTIAL_INPUT, chunk);
+                                }
+                            };
+                            try {
+                                (window as any).ADHNativeSpeech.startPcm();
+                                console.info("[Voice] native PCM ASR started");
+                            } catch (error: any) {
+                                continuousStreamActiveRef.current = false;
+                                cleanupStreamSession();
+                                setStartMicRecord(false);
+                                setStartAsrConvert(false);
+                                addToast({
+                                    title: error?.message || "Native microphone start failed",
+                                    variant: "flat",
+                                    color: "danger"
+                                })
+                            }
+                            break;
+                        }
+                        audioRecoder?.start().then(() => {
                             setStartMicRecord(true);
                             setStartAsrConvert(false);
                         }).catch((error: Error) => {
@@ -1080,6 +1236,10 @@ export const ChatInput = memo(({
                             break;
                         }
                         if (recvData.length > 0) {
+                            console.info("[Voice] ASR partial", {
+                                length: recvData.length,
+                                text: recvData
+                            });
                             streamLatestTranscriptRef.current = recvData;
                             streamLastTranscriptAtRef.current = Date.now();
                             setMessage(recvData);
@@ -1104,6 +1264,10 @@ export const ChatInput = memo(({
                             break;
                         }
 
+                        console.info("[Voice] ASR final", {
+                            length: recvData.length,
+                            text: recvData
+                        });
                         submitStreamTranscript(recvData);
                         break;
                     case WS_RECV_ACTION_TYPE.ENGINE_STOPPED:
@@ -1284,7 +1448,7 @@ export const ChatInput = memo(({
     }, [voiceModeActive, startMicRecord, startAsrConvert, asrInferType, asrEngine])
 
     useEffect(() => {
-        if (!ttsBlocked || shouldUseRealtimeVoice()) {
+        if (!ttsBlocked) {
             return;
         }
         stopActiveAsrForPlayback();
@@ -1303,11 +1467,16 @@ export const ChatInput = memo(({
             if (state === "starting" || state === "playing") {
                 openingGreetingActiveRef.current = true;
                 nativeRestartPendingRef.current = true;
+                stopActiveAsrForPlayback();
                 return;
             }
             if (state === "done") {
                 openingGreetingActiveRef.current = false;
                 nativeRestartPendingRef.current = true;
+                console.info("[Voice] opening greeting done, schedule restart", {
+                    realtime: shouldUseRealtimeVoice(),
+                    nativePcm: shouldPreferNativePcm()
+                });
                 scheduleNativeRestart(0);
             }
         };
@@ -1323,7 +1492,7 @@ export const ChatInput = memo(({
             if (nativeDisplayTranscriptRef.current.trim().length > 0 && !nativeSubmittedRef.current) {
                 scheduleNativeSpeechStop();
             }
-            if (handsFreeRunningRef.current && shouldPreferNativeSpeech() && !nativeRecognitionRef.current) {
+            if (handsFreeRunningRef.current && shouldUseRealtimeVoice() && !chattingRef.current && !isNativeVoiceBusy()) {
                 nativeRestartPendingRef.current = true;
                 scheduleNativeRestart(0);
             }
@@ -1335,10 +1504,10 @@ export const ChatInput = memo(({
         openingGreetingFallbackTimerRef.current = window.setTimeout(() => {
             openingGreetingActiveRef.current = false;
             nativeRestartPendingRef.current = true;
-            if (shouldPreferNativeSpeech()) {
+            if (shouldUseRealtimeVoice()) {
                 scheduleNativeRestart(0);
             }
-        }, 750);
+        }, OPENING_GREETING_VOICE_FALLBACK_MS);
 
         return () => {
             handsFreeRunningRef.current = false;
@@ -1358,10 +1527,15 @@ export const ChatInput = memo(({
     }, [])
 
     useEffect(() => {
+        chattingRef.current = chatting;
+    }, [chatting])
+
+    useEffect(() => {
         if (autoVoiceStartedRef.current) {
             return;
         }
         if (isNativeVoiceBusy()) {
+            console.info("[Voice] auto start skipped: busy");
             return;
         }
         autoVoiceStartedRef.current = true;
@@ -1371,26 +1545,40 @@ export const ChatInput = memo(({
         setVoiceHint("Starting voice");
         window.setTimeout(() => {
             if (isNativeVoiceBusy() || openingGreetingActiveRef.current) {
+                console.info("[Voice] auto start deferred", {
+                    busy: isNativeVoiceBusy(),
+                    openingGreeting: openingGreetingActiveRef.current,
+                    realtime: shouldUseRealtimeVoice()
+                });
                 autoVoiceStartedRef.current = false;
                 nativeRestartPendingRef.current = true;
                 return;
             }
+            console.info("[Voice] auto start voice", {
+                realtime: shouldUseRealtimeVoice(),
+                nativePcm: shouldPreferNativePcm(),
+                nativeSpeech: shouldPreferNativeSpeech()
+            });
             handleStartRecord();
         }, 0);
     }, [startMicRecord, startAsrConvert])
 
     useEffect(() => {
-        if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech()) {
+        if (!handsFreeRunningRef.current || !shouldUseRealtimeVoice()) {
             return;
         }
-        if (isNativeVoiceBusy() || openingGreetingActiveRef.current || ttsBlockedRef.current) {
+        if (chatting || isNativeVoiceBusy() || openingGreetingActiveRef.current || ttsBlockedRef.current) {
             return;
         }
         if (nativeRecognitionRef.current) {
             return;
         }
         nativeRestartPendingRef.current = false;
-        handleStartNativeRecord();
+        if (shouldPreferNativeSpeech()) {
+            handleStartNativeRecord();
+        } else {
+            handleStartStreamRecord();
+        }
         return () => {
             clearHandsFreeRestartTimer();
         }
@@ -1401,7 +1589,7 @@ export const ChatInput = memo(({
             return;
         }
         const timer = window.setInterval(() => {
-            if (!handsFreeRunningRef.current || !shouldPreferNativeSpeech()) {
+            if (!handsFreeRunningRef.current || !shouldUseRealtimeVoice()) {
                 return;
             }
             if (openingGreetingActiveRef.current || ttsBlockedRef.current || chatting) {
@@ -1423,7 +1611,11 @@ export const ChatInput = memo(({
                 return;
             }
             nativeRestartPendingRef.current = false;
-            handleStartNativeRecord();
+            if (shouldPreferNativeSpeech()) {
+                handleStartNativeRecord();
+            } else {
+                handleStartStreamRecord();
+            }
         }, 200);
         return () => {
             window.clearInterval(timer);
@@ -1434,6 +1626,7 @@ export const ChatInput = memo(({
     const voiceInputRunning = startMicRecord || startAsrConvert || !!nativeRecognitionRef.current || !!streamAudioRecoderRef.current || !!streamAsrWsClientRef.current;
     const micRecording = voiceModeActive || voiceInputRunning;
     const asrBusy = startAsrConvert;
+    const voiceSessionActive = voiceModeActive || voiceInputRunning || asrBusy;
     const voiceStatus = chatting || ttsBlocked
         ? "Replying"
         : asrBusy
@@ -1465,25 +1658,19 @@ export const ChatInput = memo(({
                             event.stopPropagation();
                             markVoiceButtonInteraction();
                         }}
-                        onClick={(voiceInputRunning || asrBusy) ? handleStopRecord : handleStartRecord}
+                        onClick={voiceSessionActive ? handleStopRecord : handleStartRecord}
                         aria-label="Voice chat"
                         className={clsx(
                             "flex items-center justify-center rounded-full transition-all duration-200",
-                            (voiceInputRunning || asrBusy)
-                                ? "w-12 h-12 bg-red-500 text-white shadow-lg shadow-red-500/40 animate-pulse"
-                                : true
-                                    ? "w-12 h-12 bg-green-500 text-white shadow-lg shadow-green-500/40 hover:bg-green-600 hover:scale-105"
-                                    : "w-12 h-12 bg-gray-400 text-gray-200 cursor-not-allowed"
+                            voiceSessionActive
+                                ? "w-12 h-12 bg-red-500 text-white shadow-lg shadow-red-500/35 hover:bg-red-600 hover:scale-105"
+                                : "w-12 h-12 bg-green-500 text-white shadow-lg shadow-green-500/35 hover:bg-green-600 hover:scale-105"
                         )}
                     >
-                        {(voiceInputRunning || asrBusy) ? (
+                        {voiceSessionActive ? (
                             <StopCircleIcon className='size-6' />
                         ) : (
-                            asrBusy ? (
-                                <Spinner size="sm" color="white" />
-                            ) : (
-                                <MicrophoneIcon className='size-6' />
-                            )
+                            <MicrophoneIcon className='size-6' />
                         )}
                     </button>
                 </Tooltip>
@@ -1499,7 +1686,7 @@ export const ChatInput = memo(({
                             "w-12 h-12 shrink-0 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg",
                             canStopAssistant
                                 ? "bg-red-500 text-white shadow-red-500/40 hover:bg-red-600 hover:scale-105"
-                                : "bg-zinc-700/70 text-zinc-400 cursor-not-allowed shadow-zinc-900/20"
+                                : "bg-zinc-800 text-zinc-100 cursor-not-allowed shadow-zinc-900/20"
                         )}
                         aria-label="Stop reply"
                     >

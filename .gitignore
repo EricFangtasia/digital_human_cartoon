@@ -32,6 +32,12 @@ logs/
 *.tmp
 tmp/
 temp/
+.npm-cache/
+app_packages/
+
+# Local debug screenshots
+/adb_*.png
+/adh_*.png
 
 # Environment / secrets
 .env

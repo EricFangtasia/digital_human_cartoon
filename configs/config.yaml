@@ -8,7 +8,7 @@ SERVER:
   WORKSPACE_PATH: "./outputs"
   ENGINES:
     ASR:
-      SUPPORT_LIST: [ "funasrStreamingAPI.yaml", "difyAPI.yaml", "cozeAPI.yaml", "tencentAPI.yaml"]
+      SUPPORT_LIST: [ "funasrStreamingAPI.yaml", "tencentRealtimeAPI.yaml", "difyAPI.yaml", "cozeAPI.yaml", "tencentAPI.yaml"]
       DEFAULT: "funasrStreamingAPI.yaml"
     TTS:
       SUPPORT_LIST: [ "edgeAPI.yaml", "tencentAPI.yaml", "difyAPI.yaml", "cozeAPI.yaml" ]

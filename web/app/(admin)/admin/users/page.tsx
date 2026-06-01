@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import {
@@ -212,7 +212,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">用户管理</h1>
-          <p className="text-gray-500 text-sm mt-1">管理系统注册用户</p>
+          <p className="text-gray-700 text-sm mt-1">管理系统注册用户</p>
         </div>
         <Button color="primary" onPress={openCreate}>
           + 新建用户
@@ -247,11 +247,11 @@ export default function UsersPage() {
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">加载中...</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-700">加载中...</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">暂无数据</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-700">暂无数据</td>
               </tr>
             ) : (
               filtered.map((user) => (
@@ -282,7 +282,7 @@ export default function UsersPage() {
                       </Chip>
                     ) : "-"}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
+                  <td className="px-4 py-3 text-gray-700 text-xs">
                     {user.created_at ? new Date(user.created_at).toLocaleDateString("zh-CN") : "-"}
                   </td>
                   <td className="px-4 py-3">
@@ -407,16 +407,16 @@ export default function UsersPage() {
             <>
               <ModalHeader className="flex flex-col gap-1">
                 <span>{guardianUserName} 的监护人</span>
-                <span className="text-sm font-normal text-gray-400">管理该用户绑定的监护人</span>
+                <span className="text-sm font-normal text-gray-700">管理该用户绑定的监护人</span>
               </ModalHeader>
               <ModalBody>
                 {guardianLoading ? (
-                  <div className="py-8 text-center text-gray-400">加载中...</div>
+                  <div className="py-8 text-center text-gray-700">加载中...</div>
                 ) : (
                   <div className="space-y-4">
                     {/* 当前监护人列表 */}
                     {guardians.length === 0 ? (
-                      <p className="text-gray-400 text-sm py-2">暂无监护人，请添加</p>
+                      <p className="text-gray-700 text-sm py-2">暂无监护人，请添加</p>
                     ) : (
                       <div className="space-y-2">
                         {guardians.map((g: any, i: number) => (
@@ -430,7 +430,7 @@ export default function UsersPage() {
                               </div>
                               <div>
                                 <p className="font-medium text-gray-800 text-sm">{g.name}</p>
-                                {g.phone && <p className="text-xs text-gray-500">{g.phone}</p>}
+                                {g.phone && <p className="text-xs text-gray-700">{g.phone}</p>}
                                 {g.guardian_user_id && (
                                   <p className="text-xs text-green-600">系统用户</p>
                                 )}
@@ -454,7 +454,7 @@ export default function UsersPage() {
                       <div className="border border-blue-100 rounded-lg p-4 bg-blue-50 space-y-3">
                         <p className="text-sm font-medium text-gray-700">选择监护人用户</p>
                         {availableGuardianUsers.length === 0 ? (
-                          <p className="text-sm text-gray-400">暂无可选的监护人用户（所有监护人角色用户均已绑定，或系统中没有监护人角色用户）</p>
+                          <p className="text-sm text-gray-700">暂无可选的监护人用户（所有监护人角色用户均已绑定，或系统中没有监护人角色用户）</p>
                         ) : (
                           <Select
                             label="选择监护人"
@@ -514,3 +514,4 @@ export default function UsersPage() {
     </div>
   );
 }
+

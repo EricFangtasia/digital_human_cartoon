@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, memo, useRef, useState } from "react";
-import { CHAT_MODE, APP_TYPE, IFER_TYPE } from "@/lib/protocol";
+import { APP_TYPE } from "@/lib/protocol";
 import { ChatRecord } from "./record";
-import { ChatInput, ChatVadInput, ChatStreamInput } from "./input";
+import { ChatInput } from "./input";
 import { api_tts_infer } from "@/lib/api/server";
 import { base64ToArrayBuffer } from "@/lib/func";
 import { convertMp3ArrayBufferToWavArrayBuffer } from "@/lib/utils/audio";
@@ -11,9 +11,7 @@ import { Live2dManager } from "@/lib/live2d/live2dManager";
 import { Tooltip } from "@heroui/react";
 import { ChatBubbleLeftRightIcon, ArrowPathIcon, StopIcon } from "@heroicons/react/24/solid";
 import {
-    useSentioChatModeStore,
     useSentioThemeStore,
-    useSentioAsrStore,
     useSentioTtsStore,
     useChatRecordStore,
 } from "@/lib/store/sentio";
@@ -23,11 +21,13 @@ const OPENING_GREETING = "\u4f60\u597d\uff0c\u8bf7\u95ee\u6709\u4ec0\u4e48\u53ef
 const OPENING_GREETING_START_DELAY_MS = 1200;
 const OPENING_GREETING_RETRY_MS = 700;
 const OPENING_GREETING_MAX_ATTEMPTS = 8;
+
 const dispatchAssistantSpeechText = (text: string) => {
     document.dispatchEvent(new CustomEvent("sentio:assistant-speech-text", {
         detail: { text, at: Date.now() }
     }));
 };
+
 const dispatchOpeningGreetingState = (state: "starting" | "playing" | "done") => {
     document.dispatchEvent(new CustomEvent('sentio:opening-greeting', {
         detail: { state, at: Date.now() }
@@ -35,8 +35,6 @@ const dispatchOpeningGreetingState = (state: "starting" | "playing" | "done") =>
 };
 
 function FreedomChatBot() {
-    const { chatMode } = useSentioChatModeStore();
-    const { infer_type } = useSentioAsrStore();
     const { clearChatRecord } = useChatRecordStore();
     const [showChatRecord, setShowChatRecord] = useState(true);
     const lastVoiceButtonInteractionAtRef = useRef(0);
@@ -44,6 +42,16 @@ function FreedomChatBot() {
     const greetingAudioRef = useRef<ArrayBuffer | null>(null);
     const touchVoiceControllerRef = useRef<AbortController | null>(null);
     const touchVoiceRequestIdRef = useRef(0);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.get("app") === "android") {
+            clearChatRecord();
+        }
+    }, [clearChatRecord]);
 
     useEffect(() => {
         let cancelled = false;
@@ -216,7 +224,7 @@ function FreedomChatBot() {
         "backdrop-blur-md shadow-lg transition-all duration-200 focus:outline-none",
         active
             ? "bg-white/25 border-white/55 text-white hover:bg-white/35"
-            : "bg-slate-900/35 border-white/25 text-white/70 hover:bg-slate-900/45"
+            : "bg-slate-900/65 border-white/45 text-white hover:bg-slate-900/75"
     );
 
     return (
@@ -233,7 +241,7 @@ function FreedomChatBot() {
                         <ChatBubbleLeftRightIcon className="size-5 shrink-0" />
                     </button>
                 </Tooltip>
-                <Tooltip className='opacity-90' placement="right" content="停止当前语音并清空聊天记录">
+                <Tooltip className='opacity-90' placement="right" content="重新对话">
                     <button
                         type="button"
                         className={toolButtonClass(false)}
@@ -257,16 +265,16 @@ function FreedomChatBot() {
             <ChatRecord className={clsx("md:pl-16", !showChatRecord && "opacity-0 pointer-events-none")} />
             <ChatInput />
         </div>
-    )
+    );
 }
 
 function ChatBot() {
     const { theme } = useSentioThemeStore();
     switch (theme) {
         case APP_TYPE.FREEDOM:
-            return <FreedomChatBot />
+            return <FreedomChatBot />;
         default:
-            return <FreedomChatBot />
+            return <FreedomChatBot />;
     }
 }
 

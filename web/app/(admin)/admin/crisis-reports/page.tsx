@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Select, SelectItem, Chip } from "@heroui/react";
@@ -65,7 +65,7 @@ export default function CrisisReportsPage() {
     <div className="p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">危机上报记录</h1>
-        <p className="text-gray-500 text-sm mt-1">系统自动检测并上报的危机事件</p>
+        <p className="text-gray-700 text-sm mt-1">系统自动检测并上报的危机事件</p>
       </div>
 
       {/* 统计概览 */}
@@ -83,7 +83,7 @@ export default function CrisisReportsPage() {
             onClick={() => setFilter(item.label === "全部" ? "all" : Object.entries(SEVERITY_CONFIG).find(([, v]) => v.label === item.label)?.[0] || "all")}
           >
             <p className={`text-2xl font-bold ${item.color}`}>{loading ? "..." : item.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{item.label}</p>
+            <p className="text-xs text-gray-700 mt-0.5">{item.label}</p>
           </div>
         ))}
       </div>
@@ -98,14 +98,14 @@ export default function CrisisReportsPage() {
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filter === opt.key
                   ? "bg-blue-100 text-blue-700"
-                  : "text-gray-500 hover:bg-gray-100"
+                  : "text-gray-700 hover:bg-gray-100"
               }`}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        <span className="text-sm text-gray-400">共 {filtered.length} 条记录</span>
+        <span className="text-sm text-gray-700">共 {filtered.length} 条记录</span>
       </div>
 
       {/* 表格 */}
@@ -123,11 +123,11 @@ export default function CrisisReportsPage() {
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">加载中...</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-700">加载中...</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">暂无数据</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-700">暂无数据</td>
               </tr>
             ) : (
               filtered.map((report) => (
@@ -161,10 +161,10 @@ export default function CrisisReportsPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-xs">-</span>
+                      <span className="text-gray-700 text-xs">-</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
+                  <td className="px-4 py-3 text-gray-700 text-xs">
                     {report.created_at ? new Date(report.created_at).toLocaleString("zh-CN") : "-"}
                   </td>
                 </tr>
@@ -176,3 +176,4 @@ export default function CrisisReportsPage() {
     </div>
   );
 }
+
